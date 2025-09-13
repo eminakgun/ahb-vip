@@ -9,16 +9,17 @@ class ahb_monitor extends uvm_monitor;
 
     `uvm_component_utils(ahb_monitor)
 
-    // FSM state definition
+    // Internal pipeline register for address phase
+    protected ahb_sequence_item addr_phase_tr;
+    protected bit addr_phase_valid = 0;
+
+    // FSM for burst collection
     typedef enum {IDLE, IN_BURST} state_e;
     state_e state = IDLE;
-
-    // Burst collection variables
     ahb_burst_transaction burst_tr;
     int beats_left;
     hburst_e active_burst_type;
     bit [31:0] start_addr;
-
 
     function new(string name = "ahb_monitor", uvm_component parent = null);
         super.new(name, parent);
@@ -29,37 +30,50 @@ class ahb_monitor extends uvm_monitor;
     virtual task run_phase(uvm_phase phase);
         forever begin
             @(cfg.vif.monitor_cb);
-            if (cfg.vif.monitor_cb.HREADY && (cfg.vif.monitor_cb.HTRANS inside {NONSEQ, SEQ})) begin
-                collect_and_process_beat();
+
+            // -----------------------------------------------------------------
+            // -- Data Phase Processing
+            // -- Combine address (from last cycle) with data (from this cycle)
+            // -----------------------------------------------------------------
+            if (addr_phase_valid && cfg.vif.monitor_cb.HREADY) begin
+                ahb_sequence_item complete_beat = addr_phase_tr;
+                addr_phase_valid = 0; // Consume the address phase
+
+                if (complete_beat.HWRITE) begin
+                    complete_beat.HWDATA = cfg.vif.monitor_cb.HWDATA;
+                end else begin
+                    complete_beat.HRDATA = cfg.vif.monitor_cb.HRDATA;
+                end
+                
+                process_complete_beat(complete_beat);
+            end
+
+            // -----------------------------------------------------------------
+            // -- Address Phase Processing
+            // -- Capture the start of a new transfer
+            // -----------------------------------------------------------------
+            if (cfg.vif.monitor_cb.HSELx && cfg.vif.monitor_cb.HTRANS inside {NONSEQ, SEQ}) begin
+                if (addr_phase_valid) begin
+                    `uvm_error("AHB_PROTOCOL_ERROR", "New transfer started before previous data phase completed (HREADY was low)")
+                end
+                addr_phase_tr = ahb_sequence_item::type_id::create("addr_phase_tr");
+                addr_phase_tr.HADDR  = cfg.vif.monitor_cb.HADDR;
+                addr_phase_tr.HWRITE = cfg.vif.monitor_cb.HWRITE;
+                addr_phase_tr.HSIZE  = cfg.vif.monitor_cb.HSIZE;
+                addr_phase_tr.HTRANS = cfg.vif.monitor_cb.HTRANS;
+                addr_phase_tr.HWSTRB = cfg.vif.monitor_cb.HWSTRB;
+                addr_phase_tr.HBURST = cfg.vif.monitor_cb.HBURST;
+                addr_phase_tr.HPROT  = cfg.vif.monitor_cb.HPROT;
+                addr_phase_valid = 1;
             end
         end
     endtask
 
-    virtual protected task collect_and_process_beat();
-        ahb_sequence_item beat;
-
-        // 1. Collect the raw beat data from the bus interface
-        beat = ahb_sequence_item::type_id::create("beat");
-        beat.HADDR = cfg.vif.monitor_cb.HADDR;
-        beat.HWRITE = cfg.vif.monitor_cb.HWRITE;
-        beat.HSIZE = cfg.vif.monitor_cb.HSIZE;
-        beat.HTRANS = cfg.vif.monitor_cb.HTRANS;
-        beat.HWSTRB = cfg.vif.monitor_cb.HWSTRB;
-        beat.HBURST = cfg.vif.monitor_cb.HBURST;
-        beat.HPROT = cfg.vif.monitor_cb.HPROT;
-
-        if (beat.HWRITE) begin
-            beat.HWDATA = cfg.vif.monitor_cb.HWDATA;
-        end else begin
-            // For reads, data is valid on the next edge.
-            @(cfg.vif.monitor_cb);
-            beat.HRDATA = cfg.vif.monitor_cb.HRDATA;
-        end
-
-        // 2. Publish the single beat
+    virtual protected task process_complete_beat(ahb_sequence_item beat);
+        // Publish every complete beat
         beat_ap.write(beat);
 
-        // 3. Process the beat in the context of the FSM
+        // Process the beat in the context of the burst FSM
         case (state)
             IDLE: begin
                 if (beat.HTRANS == SEQ) begin
@@ -67,7 +81,6 @@ class ahb_monitor extends uvm_monitor;
                     return;
                 end
 
-                // NONSEQ transfer starts a new transaction
                 if (beat.HBURST == SINGLE) begin
                     ahb_burst_transaction single_beat_burst = new("single_beat_burst");
                     single_beat_burst.beats.push_back(beat);
@@ -83,7 +96,6 @@ class ahb_monitor extends uvm_monitor;
             end
 
             IN_BURST: begin
-                // Protocol checks
                 if (beat.HTRANS != SEQ) begin
                     `uvm_error("AHB_PROTOCOL_ERROR", $sformatf("Burst started at %h of type %s terminated unexpectedly with HTRANS=%s", start_addr, active_burst_type.name(), beat.HTRANS.name()))
                     burst_ap.write(burst_tr); // Publish partial burst
@@ -95,11 +107,10 @@ class ahb_monitor extends uvm_monitor;
                      `uvm_error("AHB_PROTOCOL_ERROR", $sformatf("HBURST changed mid-burst at address %h", beat.HADDR))
                 end
 
-                // Add beat to the burst transaction
                 burst_tr.beats.push_back(beat);
                 beats_left--;
 
-                if (beats_left <= 0) { // Use <= to handle undefined length bursts gracefully for now
+                if (beats_left <= 0) {
                     burst_ap.write(burst_tr);
                     state = IDLE;
                 end
@@ -107,14 +118,13 @@ class ahb_monitor extends uvm_monitor;
         endcase
     endtask
 
-    // Helper function to get burst length from HBURST enum
     function int get_burst_length(hburst_e burst);
         case(burst)
             SINGLE: return 1;
             INCR4, WRAP4: return 4;
             INCR8, WRAP8: return 8;
             INCR16, WRAP16: return 16;
-            INCR: return -1; // Indicate undefined length
+            INCR: return -1; // Undefined length
             default: return 1;
         endcase
     endfunction
