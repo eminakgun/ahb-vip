@@ -101,6 +101,11 @@ This phase adds advanced features to make the VIP robust, comprehensive, and cap
     *   **Manager VIP:** Add logic to properly handle an `ERROR` response, such as cancelling the rest of a burst by driving `HTRANS` to `IDLE`[cite: 487, 761].
     *   **Monitor:** Correctly capture the `ERROR` response and check that it follows the two-cycle protocol[cite: 759].
 
+*   [ ] Advanced Monitor Features
+    *   [ ] Implement an FSM to detect and correctly sample full burst transfers.
+    *   [ ] Add a second analysis port (`burst_ap`) to broadcast completed burst transactions. The original port will continue to broadcast individual beats.
+    *   [ ] Implement protocol error-checking mechanisms (e.g., for illegal `HTRANS` transitions, `HBURST` changes during a burst, etc.).
+
 *   [ ] Add Support for AHB5 Features
     *   **Write Strobes (`HWSTRB`):**
         *   [x] Added `HWSTRB` to the interface and transaction object[cite: 314].

@@ -8,6 +8,7 @@ package ahb_pkg;
     `include "ahb_config.svh"
 
     `include "ahb_sequence_item.svh"
+    `include "ahb_burst_transaction.svh"
     `include "ahb_single_write_sequence.svh"
     `include "ahb_single_read_sequence.svh"
     `include "ahb_incr4_write_read_sequence.svh"
