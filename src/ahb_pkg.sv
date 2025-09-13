@@ -11,6 +11,7 @@ package ahb_pkg;
     `include "ahb_burst_transaction.svh"
     `include "ahb_single_write_sequence.svh"
     `include "ahb_single_read_sequence.svh"
+    `include "ahb_write_read_verify_sequence.svh"
     `include "ahb_incr4_write_read_sequence.svh"
     `include "ahb_sequencer.svh"
     `include "ahb_driver.svh"

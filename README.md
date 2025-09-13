@@ -49,35 +49,35 @@ These are additional features and refactorings implemented to improve the VIP's 
 
 The goal of the MVP is to verify basic, zero-wait-state, single and simple burst transfers correctly.
 
-*   [ ] Implement Basic Manager Driver Functionality
+*   [x] Implement Basic Manager Driver Functionality
     *   Drive fundamental address and control signals: `HADDR`, `HWRITE`, `HSIZE`[cite: 365].
     *   Implement basic transfer types: `NONSEQ` for the first beat and `IDLE` for inactive cycles[cite: 397, 387].
     *   Drive `HWDATA` for write transfers[cite: 783].
     *   Wait for `HREADY` to be HIGH before completing a transfer and starting the next one[cite: 358].
 
-*   [ ] Implement a Basic Subordinate "Memory Model" Driver
+*   [x] Implement a Basic Subordinate "Memory Model" Driver
     *   Act as a simple memory: respond to transfers when its `HSELx` is asserted[cite: 340].
     *   On a read transfer, retrieve data and drive `HRDATA`[cite: 789].
     *   On a write transfer, sample `HWDATA` and store it[cite: 786].
     *   Always drive `HREADYOUT` HIGH (no wait states)[cite: 367].
     *   Always drive `HRESP` as `OKAY`[cite: 330].
 
-*   [ ] Implement Basic Monitor Functionality
+*   [x] Implement Basic Monitor Functionality
     *   On the rising edge of `HCLK`, sample the bus signals[cite: 867].
     *   Detect the start of a transfer when `HTRANS` is `NONSEQ` or `SEQ`[cite: 397, 400].
     *   When `HREADY` is HIGH, capture the transfer details into an `ahb_transfer` object and write it to an analysis port.
     *   **Protocol Check:** Add an assertion to ensure the address phase and data phase are correctly pipelined (address phase of the current transfer occurs during the data phase of the previous one)[cite: 370].
 
-*   [ ] Implement Basic Burst Transfers
-    *   **Sequence Item:** Add a field for burst type (`HBURST`)[cite: 292].
-    *   **Manager Driver:** Implement logic for a `SINGLE` transfer [cite: 470] and a fixed-length incrementing burst (`INCR4`)[cite: 483]. This involves driving `HTRANS` as `NONSEQ` followed by `SEQ`[cite: 399].
-    *   **Subordinate Driver:** Must be able to handle a sequence of back-to-back transfers that form a burst.
-    *   **Monitor:** Identify and reconstruct full bursts.
+*   [x] Implement Basic Burst Transfers
+    *   [x] **Sequence Item:** Add a field for burst type (`HBURST`)[cite: 292].
+    *   [x] **Manager Driver:** Implement logic for a `SINGLE` transfer [cite: 470] and a fixed-length incrementing burst (`INCR4`)[cite: 483]. This involves driving `HTRANS` as `NONSEQ` followed by `SEQ`[cite: 399].
+    *   [x] **Subordinate Driver:** Must be able to handle a sequence of back-to-back transfers that form a burst.
+    *   [ ] **Monitor:** Identify and reconstruct full bursts.
 
 *   [ ] Create MVP-Level Tests
-    *   `test_single_read`: A single read to the Subordinate.
-    *   `test_single_write`: A single write to the Subordinate.
-    *   `test_incr4_write_read`: Perform a 4-beat write burst, then read back the same locations to verify data integrity.
+    *   [ ] `test_single_read`: A single read to the Subordinate.
+    *   [x] `test_single_write`: A single write to the Subordinate, verified with a read-back.
+    *   [ ] `test_incr4_write_read`: Perform a 4-beat write burst, then read back the same locations to verify data integrity.
 
 ---
 
