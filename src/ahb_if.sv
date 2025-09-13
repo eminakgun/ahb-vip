@@ -78,4 +78,24 @@ interface ahb_if#(
         input HSELx
     );
 
+    // Manager Clocking Block
+    clocking manager_cb @(posedge HCLK);
+        default input #1step output #1ns;
+        output HADDR, HBURST, HMASTLOCK, HPROT, HSIZE, HTRANS, HWDATA, HWSTRB, HWRITE;
+        input HRDATA, HREADY, HRESP;
+    endclocking
+
+    // Subordinate Clocking Block
+    clocking subordinate_cb @(posedge HCLK);
+        default input #1step output #1ns;
+        input HADDR, HBURST, HMASTLOCK, HPROT, HSIZE, HTRANS, HWDATA, HWSTRB, HWRITE, HSELx;
+        output HRDATA, HREADYOUT, HRESP;
+    endclocking
+
+    // Monitor Clocking Block
+    clocking monitor_cb @(posedge HCLK);
+        default input #1step output #1ns;
+        input HADDR, HBURST, HMASTLOCK, HPROT, HSIZE, HTRANS, HWDATA, HWSTRB, HWRITE, HRDATA, HREADY, HRESP, HSELx;
+    endclocking
+
 endinterface
