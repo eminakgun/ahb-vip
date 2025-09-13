@@ -77,7 +77,7 @@ class ahb_monitor extends uvm_monitor;
         case (state)
             IDLE: begin
                 if (beat.HTRANS == SEQ) begin
-                    `uvm_error("AHB_PROTOCOL_ERROR", "SEQ transfer outside of a burst sequence")
+                    `uvm_error("AHB_PROTOCOL_ERROR", $sformatf("Illegal SEQ transfer detected at address %h while not in a burst. A burst must start with a NONSEQ transfer.", beat.HADDR))
                     return;
                 end
 
@@ -110,7 +110,7 @@ class ahb_monitor extends uvm_monitor;
                 burst_tr.beats.push_back(beat);
                 beats_left--;
 
-                if (beats_left <= 0) {
+                if (beats_left <= 0) begin
                     burst_ap.write(burst_tr);
                     state = IDLE;
                 end
