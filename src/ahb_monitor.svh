@@ -71,6 +71,7 @@ class ahb_monitor extends uvm_monitor;
 
     virtual protected task process_complete_beat(ahb_sequence_item beat);
         // Publish every complete beat
+        `uvm_info("BEAT_COLLECTED", $sformatf("Beat collected: %s", beat.sprint()), UVM_HIGH)
         beat_ap.write(beat);
 
         // Process the beat in the context of the burst FSM
@@ -84,8 +85,10 @@ class ahb_monitor extends uvm_monitor;
                 if (beat.HBURST == SINGLE) begin
                     ahb_burst_transaction single_beat_burst = new("single_beat_burst");
                     single_beat_burst.beats.push_back(beat);
+                    `uvm_info("BURST_COMPLETE", $sformatf("SINGLE beat burst complete: %s", single_beat_burst.sprint()), UVM_MEDIUM)
                     burst_ap.write(single_beat_burst);
                 end else begin // Start of a multi-beat burst
+                    `uvm_info("FSM_STATE_CHANGE", $sformatf("IDLE -> IN_BURST. Burst of type %s started at addr %h.", beat.HBURST.name(), beat.HADDR), UVM_MEDIUM)
                     burst_tr = new("burst_tr");
                     burst_tr.beats.push_back(beat);
                     beats_left = get_burst_length(beat.HBURST) - 1;
@@ -111,7 +114,9 @@ class ahb_monitor extends uvm_monitor;
                 beats_left--;
 
                 if (beats_left <= 0) begin
+                    `uvm_info("BURST_COMPLETE", $sformatf("Burst of type %s complete. %s", active_burst_type.name(), burst_tr.sprint()), UVM_MEDIUM)
                     burst_ap.write(burst_tr);
+                    `uvm_info("FSM_STATE_CHANGE", "IN_BURST -> IDLE.", UVM_MEDIUM)
                     state = IDLE;
                 end
             end
