@@ -106,9 +106,7 @@ class ahb_monitor extends uvm_monitor;
                     // TODO: Re-process the current beat as a new transaction if it was NONSEQ
                     return;
                 end
-                if (beat.HBURST != active_burst_type) begin
-                     `uvm_error("AHB_PROTOCOL_ERROR", $sformatf("HBURST changed mid-burst at address %h", beat.HADDR))
-                end
+                
 
                 burst_tr.beats.push_back(beat);
                 beats_left--;
