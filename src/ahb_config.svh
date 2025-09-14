@@ -5,6 +5,7 @@ class ahb_config extends uvm_object;
     uvm_active_passive_enum is_active = UVM_ACTIVE;
     agent_type_e agent_type = MANAGER;
     virtual ahb_if vif;
+    bit en_cov = 0;
 
     // UVM factory registration
     `uvm_object_utils(ahb_config)

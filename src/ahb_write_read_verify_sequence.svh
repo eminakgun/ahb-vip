@@ -11,7 +11,6 @@ class ahb_write_read_verify_sequence extends uvm_sequence#(ahb_sequence_item);
 
     virtual task body();
         // 1. Send a single WRITE transaction
-        `uvm_info(get_type_name(), $sformatf("Sending single write request to addr %h...", addr), UVM_MEDIUM)
         begin
             ahb_sequence_item wr_req = ahb_sequence_item::type_id::create("wr_req");
             start_item(wr_req);
@@ -21,6 +20,7 @@ class ahb_write_read_verify_sequence extends uvm_sequence#(ahb_sequence_item);
                 HBURST == SINGLE;
                 HSIZE == HSIZE_WORD;
             }) `uvm_error("RNDFAIL", "Write randomize failed")
+            `uvm_info(get_type_name(), $sformatf("Sending single write request to addr %h...", wr_req.HADDR), UVM_MEDIUM)
             finish_item(wr_req);
 
             addr = wr_req.HADDR; // save write addr and data

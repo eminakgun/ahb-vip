@@ -16,6 +16,7 @@ package ahb_pkg;
     `include "ahb_sequencer.svh"
     `include "ahb_driver.svh"
     `include "ahb_monitor.svh"
+    `include "ahb_coverage.svh"
     `include "ahb_agent.svh"
     `include "ahb_env.svh"
 

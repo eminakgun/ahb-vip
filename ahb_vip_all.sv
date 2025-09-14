@@ -165,6 +165,7 @@ class ahb_config extends uvm_object;
     uvm_active_passive_enum is_active = UVM_ACTIVE;
     agent_type_e agent_type = MANAGER;
     virtual ahb_if vif;
+    bit en_cov = 0;
 
     // UVM factory registration
     `uvm_object_utils(ahb_config)
@@ -725,6 +726,67 @@ class ahb_monitor extends uvm_monitor;
 endclass
   // --- End of ahb_monitor.svh ---
 
+  // --- Content from ahb_coverage.svh ---
+class coverage_collector extends uvm_subscriber#(ahb_sequence_item);
+
+    `uvm_component_utils(coverage_collector)
+
+    // Transaction item to be sampled
+    ahb_sequence_item tr;
+
+    // Covergroup for basic AHB transfer properties
+    covergroup ahb_transfer_cg;
+        option.per_instance = 1;
+
+        // Cover HTRANS
+        cp_htrans: coverpoint tr.HTRANS {
+            bins idle    = {IDLE};
+            bins busy    = {BUSY};
+            bins nonseq  = {NONSEQ};
+            bins seq     = {SEQ};
+        }
+
+        // Cover HBURST
+        cp_hburst: coverpoint tr.HBURST {
+            bins single  = {SINGLE};
+            bins incr4   = {INCR4};
+            // TODO: Add other burst types as they are supported
+        }
+
+        // Cover HSIZE
+        cp_hsize: coverpoint tr.HSIZE {
+            bins size_byte    = {HSIZE_BYTE};
+            bins size_hword   = {HSIZE_HWORD};
+            bins size_word    = {HSIZE_WORD};
+        }
+
+        // Cover HWRITE
+        cp_hwrite: coverpoint tr.HWRITE {
+            bins write = {1'b1};
+            bins read  = {1'b0};
+        }
+    endgroup
+
+    function new(string name = "coverage_collector", uvm_component parent = null);
+        super.new(name, parent);
+        ahb_transfer_cg = new();
+    endfunction
+
+    // The write method is called by the analysis port to sample the transaction
+    function void write(ahb_sequence_item t);
+        this.tr = t;
+        ahb_transfer_cg.sample();
+        `uvm_info("COVERAGE", $sformatf("Sampled transaction: %s", t.sprint()), UVM_HIGH)
+    endfunction
+
+    function void report_phase(uvm_phase phase);
+        super.report_phase(phase);
+        `uvm_info("COVERAGE_REPORT", $sformatf("AHB Transfer Coverage: %3.2f%%", ahb_transfer_cg.get_inst_coverage()), UVM_LOW)
+    endfunction
+
+endclass
+  // --- End of ahb_coverage.svh ---
+
   // --- Content from ahb_agent.svh ---
 
 
@@ -732,9 +794,10 @@ endclass
 class ahb_agent extends uvm_agent;
 
     // Components
-    ahb_sequencer   sequencer;
-    ahb_driver      driver;
-    ahb_monitor     monitor;
+    ahb_sequencer      sequencer;
+    ahb_driver         driver;
+    ahb_monitor        monitor;
+    coverage_collector cov_collector;
 
     uvm_analysis_port#(ahb_sequence_item) ap;
 
@@ -752,11 +815,16 @@ class ahb_agent extends uvm_agent;
 
     // Build phase
     function void build_phase(uvm_phase phase);
+        super.build_phase(phase);
 
         uvm_config_db#(ahb_config)::get(this, "", "cfg", cfg);
 
         monitor = ahb_monitor::type_id::create("monitor", this);
         monitor.cfg = cfg;
+
+        if (cfg.en_cov) begin
+            cov_collector = coverage_collector::type_id::create("cov_collector", this);
+        end
 
         if (cfg.is_active == UVM_ACTIVE) begin
             driver = ahb_driver::type_id::create("driver", this);
@@ -769,6 +837,9 @@ class ahb_agent extends uvm_agent;
     function void connect_phase(uvm_phase phase);
         super.connect_phase(phase);
         monitor.get_item_collected_port().connect(ap);
+        if (cfg.en_cov) begin
+            monitor.get_item_collected_port().connect(cov_collector.analysis_export);
+        end
         if (cfg.is_active == UVM_ACTIVE) begin
             driver.seq_item_port.connect(sequencer.seq_item_export);
         end

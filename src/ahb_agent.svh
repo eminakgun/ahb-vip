@@ -4,9 +4,10 @@
 class ahb_agent extends uvm_agent;
 
     // Components
-    ahb_sequencer   sequencer;
-    ahb_driver      driver;
-    ahb_monitor     monitor;
+    ahb_sequencer      sequencer;
+    ahb_driver         driver;
+    ahb_monitor        monitor;
+    coverage_collector cov_collector;
 
     uvm_analysis_port#(ahb_sequence_item) ap;
 
@@ -24,11 +25,16 @@ class ahb_agent extends uvm_agent;
 
     // Build phase
     function void build_phase(uvm_phase phase);
+        super.build_phase(phase);
 
         uvm_config_db#(ahb_config)::get(this, "", "cfg", cfg);
 
         monitor = ahb_monitor::type_id::create("monitor", this);
         monitor.cfg = cfg;
+
+        if (cfg.en_cov) begin
+            cov_collector = coverage_collector::type_id::create("cov_collector", this);
+        end
 
         if (cfg.is_active == UVM_ACTIVE) begin
             driver = ahb_driver::type_id::create("driver", this);
@@ -41,6 +47,9 @@ class ahb_agent extends uvm_agent;
     function void connect_phase(uvm_phase phase);
         super.connect_phase(phase);
         monitor.get_item_collected_port().connect(ap);
+        if (cfg.en_cov) begin
+            monitor.get_item_collected_port().connect(cov_collector.analysis_export);
+        end
         if (cfg.is_active == UVM_ACTIVE) begin
             driver.seq_item_port.connect(sequencer.seq_item_export);
         end
