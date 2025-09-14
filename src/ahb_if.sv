@@ -143,7 +143,7 @@ interface ahb_if#(
             default: 1'b0; // Should never happen
         endcase
     endproperty
-    assert_haddr_alignment: assert property (p_haddr_alignment)
+    a_haddr_alignment: assert property (p_haddr_alignment)
     else $error("SVA Error: HADDR is not aligned properly for HSIZE=%0d", HSIZE);
     
 

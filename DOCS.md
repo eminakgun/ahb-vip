@@ -3,8 +3,6 @@
 ## Overview
 This AHB VIP (Verification IP) is a comprehensive SystemVerilog UVM-based verification environment for verifying AHB (Advanced High-performance Bus) protocol compliance. The VIP supports both manager (master) and subordinate (slave) agents and provides comprehensive protocol checking, coverage collection, and transaction monitoring capabilities.
 
----
-
 ## 1. VIP Architecture
 
 ### 1.1 Block Diagram
@@ -116,7 +114,6 @@ This AHB VIP (Verification IP) is a comprehensive SystemVerilog UVM-based verifi
 - **enable_memory_model**: 1 - Enable scoreboard memory modeling
 - **strict_checking**: 1 - Enable strict protocol checking
 
----
 
 ## 2. List of SVAs (SystemVerilog Assertions)
 
@@ -162,7 +159,7 @@ This AHB VIP (Verification IP) is a comprehensive SystemVerilog UVM-based verifi
   ```
 
 #### 2.1.4 Address Alignment Checking
-- **SVA_AHB_004**: `assert_haddr_alignment`
+- **SVA_AHB_004**: `a_haddr_alignment`
   - **Description**: HADDR must be properly aligned based on HSIZE for NONSEQ and SEQ transfers
   - **Property**: 
   ```systemverilog
@@ -180,7 +177,7 @@ This AHB VIP (Verification IP) is a comprehensive SystemVerilog UVM-based verifi
           default: 1'b0;
       endcase
   endproperty
-  assert_haddr_alignment: assert property (p_haddr_alignment)
+  a_haddr_alignment: assert property (p_haddr_alignment)
       else $error("SVA Error: HADDR is not aligned properly for HSIZE=%0d", HSIZE);
   ```
 
@@ -191,28 +188,11 @@ This AHB VIP (Verification IP) is a comprehensive SystemVerilog UVM-based verifi
   - **Description**: Validates proper burst sequencing (NONSEQ followed by SEQ transfers)
   - **Implementation**: FSM-based checking in monitor that detects illegal SEQ transfers outside burst context
 
-### 2.3 Constraint-Based Protocol Checking
-- **Sequence Item Constraints**: Implemented in `ahb_sequence_item` class
-  - **Description**: Ensures only valid combinations of control signals are generated
-  - **Property**: 
-  ```systemverilog
-  constraint c_valid_transfer {
-      HTRANS inside {IDLE, BUSY, NONSEQ, SEQ};
-      HSIZE inside {HSIZE_BYTE, HSIZE_HWORD, HSIZE_WORD};
-      HBURST inside {SINGLE, INCR4};
-      soft (HSIZE == HSIZE_HWORD) -> HADDR % 16 == 0;
-      soft (HSIZE == HSIZE_WORD) -> HADDR % 32 == 0;
-  }
-  ```
-
----
-
 ## 3. Test Scenarios and Results
 
 ### 3.1 Test Environment Setup
 - **Simulator**: QuestaSim or equivalent SystemVerilog simulator
 - **Language**: SystemVerilog/UVM 1.2
-- **Coverage Tools**: Native SystemVerilog coverage and UVM coverage collector
 - **Waveform Viewer**: ModelSim Wave or GTKWave (VCD output)
 
 ### 3.2 Basic Functionality Tests

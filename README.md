@@ -1,3 +1,5 @@
+# AHB Verification IP Design
+
 ## VIP Architecture & Infrastructure (Phase 0)
 
 This phase establishes the core UVM structure. These items are prerequisites for implementing protocol-specific features.
@@ -41,7 +43,6 @@ These are additional features and refactorings implemented to improve the VIP's 
 *   [x] Top-Level Testbench (`tb_top.sv`): Implemented a top-level module to instantiate AHB interfaces, generate clock/reset, and initiate the UVM testbench.
 *   [x] UVM Field Macro Correction: Corrected `uvm_field_int` to `uvm_field_enum` for enum-typed variables in `ahb_sequence_item`.
 *   [x] Constructor Implementation: Ensured all UVM classes (`ahb_config`, `ahb_sequence_item`, `ahb_sequencer`, `ahb_driver`, `ahb_monitor`, `ahb_agent`, `ahb_env`, `base_test`) have appropriate constructors.
-*   [x] `super.build_phase` Removal: Removed calls to `super.build_phase` in all UVM components as per specific user instruction.
 
 ---
 
@@ -66,7 +67,7 @@ The goal of the MVP is to verify basic, zero-wait-state, single and simple burst
     *   On the rising edge of `HCLK`, sample the bus signals.
     *   Detect the start of a transfer when `HTRANS` is `NONSEQ` or `SEQ`.
     *   When `HREADY` is HIGH, capture the transfer details into an `ahb_transfer` object and write it to an analysis port.
-    *   **Protocol Check:** Add an assertion to ensure the address phase and data phase are correctly pipelined (address phase of the current transfer occurs during the data phase of the previous one)[cite: 370].
+    *   **Protocol Check:** Add an assertion to ensure the address phase and data phase are correctly pipelined (address phase of the current transfer occurs during the data phase of the previous one).
 
 *   [x] Implement Basic Burst Transfers
     *   [x] **Sequence Item:** Add a field for burst type (`HBURST`).
