@@ -104,9 +104,34 @@ interface ahb_if#(
         input HADDR, HBURST, HMASTLOCK, HPROT, HSIZE, HTRANS, HWDATA, HWSTRB, HWRITE, HRDATA, HREADY, HRESP, HSELx;
     endclocking
 
+    // ===========================================================
+    // Protocol Checkers
+    // ===========================================================
+
     // SVA: Check that HBURST remains stable throughout a burst transfer.
     // SEQ    = 2'b11
-    a_hburst_stable: assert property (@(posedge HCLK) (HREADY && HTRANS == 2'b11) |=> $stable(HBURST))
+    property p_hburst_stable
+        @(posedge HCLK) disable iff(!HRESETn)
+        (HREADY && HTRANS == 2'b11) |=> $stable(HBURST);
+    endproperty
+    a_hburst_stable: assert property (p_hburst_stable)
+        else $error("SVA Error: HBURST changed value mid-burst.");
+
+    // SVA: Check that second Cycle of HRESP should have HTRANS == IDLE to
+    // cancel data phase of previous transaction
+    property idle_on_err_p;
+        @(posedge HCLK) disable iff(!HRESETn)
+        (HRESP == 1) ##1 (HRESP == 1) |-> (HTRANS == 0);
+    endproperty
+    a_idle_on_error: assert property (idle_on_err_p)
+        else $error("SVA Error: HBURST changed value mid-burst.");
+
+    // SVA: Check that subordinates doesn't insert wait states for IDLE transfers
+    property idle_okay_p;
+        @(posedge HCLK) disable iff(!HRESETn)
+        (HTRANS == 0) |=> (HRESP == 0);
+    endproperty
+    a_idle_on_error: assert property (idle_okay_p)
         else $error("SVA Error: HBURST changed value mid-burst.");
 
 endinterface
@@ -230,9 +255,9 @@ class ahb_sequence_item extends uvm_sequence_item;
     constraint c_valid_transfer {
         HTRANS inside {IDLE, BUSY, NONSEQ, SEQ};
         HSIZE inside {HSIZE_BYTE, HSIZE_HWORD, HSIZE_WORD};
-        HBURST inside {SINGLE, INCR4}; // For now
-        soft (HSIZE == HSIZE_HWORD)-> HADDR % 16 == 0;
-        soft (HSIZE == HSIZE_WORD)-> HADDR % 32 == 0;
+        HBURST inside {SINGLE, INCR4}; // Only support single and incr4 burst for now
+        soft (HSIZE == HSIZE_HWORD) -> HADDR % 16 == 0;
+        soft (HSIZE == HSIZE_WORD) -> HADDR % 32 == 0;
     }
 
 endclass
