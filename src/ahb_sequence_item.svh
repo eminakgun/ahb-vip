@@ -33,7 +33,9 @@ class ahb_sequence_item extends uvm_sequence_item;
     constraint c_valid_transfer {
         HTRANS inside {IDLE, BUSY, NONSEQ, SEQ};
         HSIZE inside {HSIZE_BYTE, HSIZE_HWORD, HSIZE_WORD};
-        HBURST inside {SINGLE, INCR4}; // For now
+        HBURST inside {SINGLE, INCR4}; // Only support single and incr4 burst for now
+        soft (HSIZE == HSIZE_HWORD) -> HADDR % 16 == 0;
+        soft (HSIZE == HSIZE_WORD) -> HADDR % 32 == 0;
     }
 
 endclass

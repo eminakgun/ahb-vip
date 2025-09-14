@@ -18,6 +18,7 @@ package ahb_pkg;
     `include "ahb_monitor.svh"
     `include "ahb_coverage.svh"
     `include "ahb_agent.svh"
+    `include "ahb_scoreboard.svh"
     `include "ahb_env.svh"
 
 endpackage

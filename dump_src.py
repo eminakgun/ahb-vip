@@ -90,6 +90,7 @@ def dump_source_code(output_filename="ahb_vip_all.sv"):
         "ahb_monitor.svh": "src/ahb_monitor.svh",
         "ahb_coverage.svh": "src/ahb_coverage.svh",
         "ahb_agent.svh": "src/ahb_agent.svh",
+        "ahb_scoreboard.svh": "src/ahb_scoreboard.svh",
         "ahb_env.svh": "src/ahb_env.svh",
     }
 
