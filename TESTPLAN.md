@@ -39,7 +39,7 @@ This document outlines the verification strategy for the AHB-VIP. The plan is di
     1.  **`test_coverage_sampling`**:
         *   **Stimulus:** Run a variety of existing tests (e.g., `test_write_read_verify`, `test_incr4_write_read`) with coverage enabled in the test configuration.
         *   **Checking:** Verify from simulation logs or reports that the `ahb_transfer_cg` covergroup in the `coverage_collector` is being sampled. A coverage percentage greater than zero confirms success.
-        *   **Status:** **[NOT STARTED]**
+        *   **Status:** **[COMPLETED]**
 
 ### **Phase 2: Post-MVP Advanced Feature Verification**
 

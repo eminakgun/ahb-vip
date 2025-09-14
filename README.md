@@ -3,13 +3,13 @@
 This phase establishes the core UVM structure. These items are prerequisites for implementing protocol-specific features.
 
 *   [x] Define the AHB SystemVerilog `interface`
-    *   Created a single `interface` file to encapsulate all AHB signals as defined in the specification[cite: 276, 282, 288, 323, 339, 347].
+    *   Created a single `interface` file to encapsulate all AHB signals as defined in the specification.
     *   Used `modport` to define signal directions for Manager, Subordinate, and Monitor components.
-    *   Parameterized the interface for key properties like `ADDR_WIDTH` and `DATA_WIDTH`[cite: 289, 312].
+    *   Parameterized the interface for key properties like `ADDR_WIDTH` and `DATA_WIDTH`.
 
 *   [x] Create the Core Transaction/Sequence Item (`ahb_sequence_item`)
     *   Developed a `uvm_sequence_item` class to represent an AHB transfer.
-    *   Included fields for essential properties: address, write/read direction, data, transfer type (`HTRANS`), and size (`HSIZE`)[cite: 291, 311, 318, 299].
+    *   Included fields for essential properties: address, write/read direction, data, transfer type (`HTRANS`), and size (`HSIZE`).
     *   Added constraints for basic, valid transfers.
     *   **Refactored:** Renamed from `ahb_transfer` to `ahb_sequence_item`.
 
@@ -50,29 +50,29 @@ These are additional features and refactorings implemented to improve the VIP's 
 The goal of the MVP is to verify basic, zero-wait-state, single and simple burst transfers correctly.
 
 *   [x] Implement Basic Manager Driver Functionality
-    *   Drive fundamental address and control signals: `HADDR`, `HWRITE`, `HSIZE`[cite: 365].
-    *   Implement basic transfer types: `NONSEQ` for the first beat and `IDLE` for inactive cycles[cite: 397, 387].
-    *   Drive `HWDATA` for write transfers[cite: 783].
-    *   Wait for `HREADY` to be HIGH before completing a transfer and starting the next one[cite: 358].
+    *   Drive fundamental address and control signals: `HADDR`, `HWRITE`, `HSIZE`.
+    *   Implement basic transfer types: `NONSEQ` for the first beat and `IDLE` for inactive cycles.
+    *   Drive `HWDATA` for write transfers.
+    *   Wait for `HREADY` to be HIGH before completing a transfer and starting the next one.
 
 *   [x] Implement a Basic Subordinate "Memory Model" Driver
-    *   Act as a simple memory: respond to transfers when its `HSELx` is asserted[cite: 340].
-    *   On a read transfer, retrieve data and drive `HRDATA`[cite: 789].
-    *   On a write transfer, sample `HWDATA` and store it[cite: 786].
-    *   Always drive `HREADYOUT` HIGH (no wait states)[cite: 367].
-    *   Always drive `HRESP` as `OKAY`[cite: 330].
+    *   Act as a simple memory: respond to transfers when its `HSELx` is asserted.
+    *   On a read transfer, retrieve data and drive `HRDATA`.
+    *   On a write transfer, sample `HWDATA` and store it.
+    *   Always drive `HREADYOUT` HIGH (no wait states).
+    *   Always drive `HRESP` as `OKAY`.
 
 *   [x] Implement Basic Monitor Functionality
-    *   On the rising edge of `HCLK`, sample the bus signals[cite: 867].
-    *   Detect the start of a transfer when `HTRANS` is `NONSEQ` or `SEQ`[cite: 397, 400].
+    *   On the rising edge of `HCLK`, sample the bus signals.
+    *   Detect the start of a transfer when `HTRANS` is `NONSEQ` or `SEQ`.
     *   When `HREADY` is HIGH, capture the transfer details into an `ahb_transfer` object and write it to an analysis port.
     *   **Protocol Check:** Add an assertion to ensure the address phase and data phase are correctly pipelined (address phase of the current transfer occurs during the data phase of the previous one)[cite: 370].
 
 *   [x] Implement Basic Burst Transfers
-    *   [x] **Sequence Item:** Add a field for burst type (`HBURST`)[cite: 292].
-    *   [x] **Manager Driver:** Implement logic for a `SINGLE` transfer [cite: 470] and a fixed-length incrementing burst (`INCR4`)[cite: 483]. This involves driving `HTRANS` as `NONSEQ` followed by `SEQ`[cite: 399].
+    *   [x] **Sequence Item:** Add a field for burst type (`HBURST`).
+    *   [x] **Manager Driver:** Implement logic for a `SINGLE` transfer and a fixed-length incrementing burst (`INCR4`). This involves driving `HTRANS` as `NONSEQ` followed by `SEQ`.
     *   [x] **Subordinate Driver:** Must be able to handle a sequence of back-to-back transfers that form a burst.
-    *   [ ] **Monitor:** Identify and reconstruct full bursts.
+    *   [x] **Monitor:** Identify and reconstruct full bursts.
 
 *   [x] Create MVP-Level Tests
     *   [x] `test_single_read`: A single read to the Subordinate.
@@ -82,8 +82,8 @@ The goal of the MVP is to verify basic, zero-wait-state, single and simple burst
     *   [ ] `test_back_to_back_rw`: Sequences of multiple non-burst writes and reads.
 
 *   [ ] VIP Enhancements
-    *   [ ] Add basic functional coverage collection.
-    *   [ ] Implement and connect a scoreboard for write/read verification.
+    *   [x] Add basic functional coverage collection.
+    *   [x] Implement and connect a scoreboard for write/read verification.
     *   [ ] Refactor Subordinate driver to move memory model to the sequence level.
     *   [ ] Refactor `ahb_burst_transaction` to `ahb_burst_item`.
 
@@ -94,20 +94,20 @@ The goal of the MVP is to verify basic, zero-wait-state, single and simple burst
 This phase adds advanced features to make the VIP robust, comprehensive, and capable of verifying complex corner cases.
 
 *   [ ] Implement Waited Transfers
-    *   **Subordinate VIP:** Add logic and configuration to drive `HREADYOUT` LOW to insert wait states into transfers[cite: 372, 742].
-    *   **Manager VIP:** Ensure it holds address and control signals stable when `HREADY` is LOW[cite: 382, 784].
-    *   **Monitor:** Correctly handle waited transfers without erroneously capturing multiple transactions. Add protocol checks for illegal signal changes during wait states[cite: 516, 549].
+    *   **Subordinate VIP:** Add logic and configuration to drive `HREADYOUT` LOW to insert wait states into transfers.
+    *   **Manager VIP:** Ensure it holds address and control signals stable when `HREADY` is LOW.
+    *   **Monitor:** Correctly handle waited transfers without erroneously capturing multiple transactions. Add protocol checks for illegal signal changes during wait states.
 
 *   [ ] Implement Full Burst and Transfer Type Support
-    *   Implement all burst types: `INCR8`, `INCR16`, `WRAP4`, `WRAP8`, `WRAP16`, and undefined-length `INCR`[cite: 480].
-    *   Implement `BUSY` transfers, allowing the manager to insert idle cycles within a burst[cite: 391].
-    *   **Protocol Check:** Add assertions to verify correct wrap address calculation [cite: 463] and ensure managers do not cross 1KB boundaries on incrementing bursts[cite: 468].
-    *   **Protocol Check:** Ensure fixed-length bursts are not terminated with a `BUSY` transfer[cite: 484].
+    *   Implement all burst types: `INCR8`, `INCR16`, `WRAP4`, `WRAP8`, `WRAP16`, and undefined-length `INCR`.
+    *   Implement `BUSY` transfers, allowing the manager to insert idle cycles within a burst.
+    *   **Protocol Check:** Add assertions to verify correct wrap address calculation and ensure managers do not cross 1KB boundaries on incrementing bursts.
+    *   **Protocol Check:** Ensure fixed-length bursts are not terminated with a `BUSY` transfer.
 
 *   [ ] Implement Subordinate Error Response
-    *   **Subordinate VIP:** Add logic to generate a two-cycle `ERROR` response (`HRESP`=1, `HREADYOUT`=0, then `HREADYOUT`=1)[cite: 748, 758]. This should be configurable and triggerable.
-    *   **Manager VIP:** Add logic to properly handle an `ERROR` response, such as cancelling the rest of a burst by driving `HTRANS` to `IDLE`[cite: 487, 761].
-    *   **Monitor:** Correctly capture the `ERROR` response and check that it follows the two-cycle protocol[cite: 759].
+    *   **Subordinate VIP:** Add logic to generate a two-cycle `ERROR` response (`HRESP`=1, `HREADYOUT`=0, then `HREADYOUT`=1). This should be configurable and triggerable.
+    *   **Manager VIP:** Add logic to properly handle an `ERROR` response, such as cancelling the rest of a burst by driving `HTRANS` to `IDLE`.
+    *   **Monitor:** Correctly capture the `ERROR` response and check that it follows the two-cycle protocol.
 
 *   [ ] Advanced Monitor Features
     *   [ ] Implement an FSM to detect and correctly sample full burst transfers.
@@ -116,25 +116,25 @@ This phase adds advanced features to make the VIP robust, comprehensive, and cap
 
 *   [ ] Add Support for AHB5 Features
     *   **Write Strobes (`HWSTRB`):**
-        *   [x] Added `HWSTRB` to the interface and transaction object[cite: 314].
-        *   Update the Manager driver to control which byte lanes are valid during a write[cite: 442].
+        *   [x] Added `HWSTRB` to the interface and transaction object.
+        *   Update the Manager driver to control which byte lanes are valid during a write.
         *   Update the Subordinate memory model to respect the write strobes.
-        *   Add coverage for sparse writes[cite: 450].
+        *   Add coverage for sparse writes.
     *   [ ] Exclusive Transfers (`HEXCL`, `HMASTER`, `HEXOKAY`):
-        *   Add the required signals to the interface and transaction object[cite: 951, 953, 956].
-        *   Implement an "Exclusive Access Monitor" component in the test environment that tracks exclusive reads and determines the success/failure of exclusive writes[cite: 942].
-        *   Update the Subordinate to route/generate the `HEXOKAY` response[cite: 966].
-        *   Add protocol checks for all restrictions on exclusive transfers (e.g., must be single beat, address aligned)[cite: 976, 978].
+        *   Add the required signals to the interface and transaction object.
+        *   Implement an "Exclusive Access Monitor" component in the test environment that tracks exclusive reads and determines the success/failure of exclusive writes.
+        *   Update the Subordinate to route/generate the `HEXOKAY` response.
+        *   Add protocol checks for all restrictions on exclusive transfers (e.g., must be single beat, address aligned).
     *   [ ] Secure Transfers (`HNONSEC`):
-        *   Add `HNONSEC` to the interface and transaction class[cite: 300].
+        *   Add `HNONSEC` to the interface and transaction class.
         *   Allow sequences to control the security level of a transfer.
     *   [ ] Protection Control & Memory Types (`HPROT`):
-        *   Expand the `HPROT` field in the transaction object to its full 7-bit width[cite: 296, 583].
-        *   Add constraints and sequences to generate all valid memory type encodings[cite: 613].
+        *   Expand the `HPROT` field in the transaction object to its full 7-bit width.
+        *   Add constraints and sequences to generate all valid memory type encodings.
 
 *   [ ] Enhance Configurability and Usability
     *   **Data/Address Width:** Ensure all components (driver, monitor, transaction) are fully scalable based on the interface parameters.
-    *   **Endianness:** Add a configuration parameter for endianness (`BE8` or `BE32`) and implement the correct byte-lane mapping logic in the driver and monitor based on the selected mode[cite: 797, 804, 808, 815].
+    *   **Endianness:** Add a configuration parameter for endianness (`BE8` or `BE32`) and implement the correct byte-lane mapping logic in the driver and monitor based on the selected mode.
     *   **Callbacks:** Add UVM callbacks in the driver and monitor for advanced error injection and customized analysis.
     *   **Coverage:** Implement comprehensive functional coverage for all transaction fields (`HBURST`, `HSIZE`, `HPROT`, etc.), wait states, and response types.
     *   **Assertions:** Create a complete SystemVerilog Assertion (SVA) checker module for all protocol rules defined in the specification.
