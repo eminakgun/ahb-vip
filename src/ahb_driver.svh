@@ -6,6 +6,8 @@ class ahb_driver extends uvm_driver#(ahb_sequence_item);
     // A simple memory model for the subordinate
     logic [31:0] mem [255:0];
 
+    int beats_left = 0;
+
     `uvm_component_utils(ahb_driver)
 
     function new(string name = "ahb_driver", uvm_component parent = null);
@@ -14,37 +16,71 @@ class ahb_driver extends uvm_driver#(ahb_sequence_item);
 
     virtual task run_phase(uvm_phase phase);
         if (cfg.agent_type == MANAGER) begin
-            drive_idle();
+            init_manager();
             manager_get_put_loop();
         end else begin // SUBORDINATE
+            init_subordinate();
             subordinate_run_phase();
         end
+    endtask
+
+    virtual protected task init_manager();
+        cfg.vif.HWRITE <= 0;
+        cfg.vif.HADDR <= 0;
+        cfg.vif.HWDATA <= '0; 
+        cfg.vif.HTRANS <= IDLE;
+        cfg.vif.HBURST <= SINGLE;
+        cfg.vif.HMASTLOCK <= '0; 
+        cfg.vif.HPROT <= '0; 
+        cfg.vif.HSIZE <= '0;
+        cfg.vif.HWSTRB <= '0;
+    endtask
+
+    virtual protected task init_subordinate();
+        cfg.vif.HRDATA <= '0;
+        cfg.vif.HREADYOUT <= '0;
+        cfg.vif.HRESP <= '0;
     endtask
 
     // This is the main manager loop based on the get/put pattern.
     virtual task manager_get_put_loop();
         forever begin
             seq_item_port.get(req);
+            `uvm_info(get_type_name(), $sformatf("DRV_START: Received req of %0d ID\n%s", 
+                                        req.get_transaction_id(), req.sprint()), UVM_MEDIUM)
             assert($cast(rsp, req.clone()));
             rsp.set_id_info(req);
-            drive_transfer();
+            drive_transfer(rsp);
         end
     endtask
 
     // This task orchestrates the pipelined transfer.
-    virtual task drive_transfer();
-        `uvm_info(get_type_name(), $sformatf("DRV_START: Starting transfer for req\n%s", rsp.sprint()), UVM_MEDIUM)
+    virtual task drive_transfer(ahb_sequence_item rsp);
+        `uvm_info(get_type_name(), $sformatf("DRV_START: Starting transfer for req of %0d ID\n%s", 
+                                              rsp.get_transaction_id(), rsp.sprint()), UVM_MEDIUM)
         // Drive the address phase for this transaction
         drive_address_phase(rsp);
+
+        // if first beat of a burst
+        if (rsp.HTRANS == NONSEQ && is_burst(rsp.HBURST))
+            beats_left = get_burst_length(rsp.HBURST);
 
         // Fork a process to handle the data phase and completion
         fork
             begin
                 // Data phase for the transaction begins on the next clock edge.
                 @(cfg.vif.manager_cb);
+                `uvm_info(get_type_name(), $sformatf("DATA_PHASE: Starting data phase of %0d ID", 
+                                                        rsp.get_transaction_id()), UVM_MEDIUM)
 
                 if (cfg.vif.manager_cb.HBURST == SINGLE) begin
                     cfg.vif.manager_cb.HTRANS <= IDLE;
+                end
+                else if (is_burst(rsp.HBURST)) begin
+                    --beats_left;
+                    if (rsp.HTRANS != INCR && beats_left == 0) begin // if not undefined length burst
+                        cfg.vif.manager_cb.HTRANS <= IDLE;
+                    end
                 end
 
                 // Drive write data during the data phase.
@@ -55,6 +91,8 @@ class ahb_driver extends uvm_driver#(ahb_sequence_item);
                 do begin
                     @(cfg.vif.manager_cb);
                 end while (cfg.vif.manager_cb.HREADY != 1'b1);
+                `uvm_info(get_type_name(), $sformatf("DATA_PHASE: Captured READY of %0d ID", 
+                                        rsp.get_transaction_id()), UVM_MEDIUM)
 
                 // Capture read data.
                 if (!rsp.HWRITE) begin
@@ -82,14 +120,6 @@ class ahb_driver extends uvm_driver#(ahb_sequence_item);
         if (item.HWRITE) begin
             cfg.vif.manager_cb.HWDATA <= item.HWDATA;
         end
-    endtask
-
-    virtual protected task drive_idle();
-        @(cfg.vif.manager_cb);
-        cfg.vif.manager_cb.HTRANS <= IDLE;
-        cfg.vif.manager_cb.HADDR <= 0;
-        cfg.vif.manager_cb.HWRITE <= 0;
-        cfg.vif.manager_cb.HBURST <= SINGLE;
     endtask
     
     virtual task subordinate_run_phase();

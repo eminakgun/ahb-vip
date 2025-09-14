@@ -19,6 +19,21 @@ typedef enum logic [2:0] {
     INCR16 = 3'b111
 } hburst_e;
 
+function int get_burst_length(hburst_e burst);
+    case(burst)
+        SINGLE: return 1;
+        INCR4, WRAP4: return 4;
+        INCR8, WRAP8: return 8;
+        INCR16, WRAP16: return 16;
+        INCR: return -1; // Undefined length
+        default: return 1;
+    endcase
+endfunction
+
+function bit is_burst(hburst_e burst);
+    return burst != SINGLE;
+endfunction
+
 // Agent type
 typedef enum { MANAGER, SUBORDINATE } agent_type_e;
 

@@ -101,7 +101,8 @@ class ahb_monitor extends uvm_monitor;
 
             IN_BURST: begin
                 if (beat.HTRANS != SEQ) begin
-                    `uvm_error("AHB_PROTOCOL_ERROR", $sformatf("Burst started at %h of type %s terminated unexpectedly with HTRANS=%s", start_addr, active_burst_type.name(), beat.HTRANS.name()))
+                    `uvm_error("AHB_PROTOCOL_ERROR", $sformatf("Burst started at %h of type %s terminated unexpectedly with HTRANS=%s when %0d beats are left", 
+                                                                start_addr, active_burst_type.name(), beat.HTRANS.name(), beats_left))
                     burst_ap.write(burst_tr); // Publish partial burst
                     state = IDLE;
                     // TODO: Re-process the current beat as a new transaction if it was NONSEQ
@@ -121,17 +122,6 @@ class ahb_monitor extends uvm_monitor;
             end
         endcase
     endtask
-
-    function int get_burst_length(hburst_e burst);
-        case(burst)
-            SINGLE: return 1;
-            INCR4, WRAP4: return 4;
-            INCR8, WRAP8: return 8;
-            INCR16, WRAP16: return 16;
-            INCR: return -1; // Undefined length
-            default: return 1;
-        endcase
-    endfunction
 
     function uvm_analysis_port#(ahb_sequence_item) get_item_collected_port();
         return beat_ap;

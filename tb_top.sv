@@ -5,7 +5,7 @@ module tb_top;
 
     // Clock and Reset Generation
     logic HCLK;
-    logic HRESETn;
+    logic HRESETn = 1;
 
     initial begin
         HCLK = 0;
@@ -30,7 +30,7 @@ module tb_top;
         uvm_config_db#(virtual ahb_if)::set(null, "uvm_test_top", "subordinate_if", ahb_if);
 
         // Run the UVM test
-        run_test("write_read_verify_test");
+        run_test("incr4_write_read_test");
     end
 
 endmodule

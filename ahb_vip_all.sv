@@ -141,6 +141,21 @@ typedef enum logic [2:0] {
     INCR16 = 3'b111
 } hburst_e;
 
+function int get_burst_length(hburst_e burst);
+    case(burst)
+        SINGLE: return 1;
+        INCR4, WRAP4: return 4;
+        INCR8, WRAP8: return 8;
+        INCR16, WRAP16: return 16;
+        INCR: return -1; // Undefined length
+        default: return 1;
+    endcase
+endfunction
+
+function bit is_burst(hburst_e burst);
+    return burst != SINGLE;
+endfunction
+
 // Agent type
 typedef enum { MANAGER, SUBORDINATE } agent_type_e;
 
@@ -381,6 +396,7 @@ class ahb_incr4_write_read_sequence extends uvm_sequence#(ahb_sequence_item);
     rand bit[31:0] start_addr;
     rand bit[31:0] write_data[4];
     bit[31:0] read_data[4];
+    htrans_e htrans;
 
     constraint c_addr { 
         start_addr inside {[32'h0:32'hF0]}; 
@@ -394,27 +410,50 @@ class ahb_incr4_write_read_sequence extends uvm_sequence#(ahb_sequence_item);
         // 1. INCR4 Write Burst
         `uvm_info(get_type_name(), "Starting INCR4 Write Burst", UVM_MEDIUM)
         for (int i = 0; i < 4; i++) begin
-            `uvm_do_with(req, {
+            req = ahb_sequence_item::type_id::create("req");
+            start_item(req);
+            htrans = (i == 0) ? NONSEQ : SEQ;
+            if(!req.randomize() with {
                 HWRITE == 1'b1;
-                HTRANS == (i == 0) ? NONSEQ : SEQ;
+                HTRANS == htrans;
                 HBURST == INCR4;
-                HADDR == start_addr + (i * 4);
+                HADDR == start_addr + (i * 4); // since hsize = word 
                 HSIZE == HSIZE_WORD;
                 HWDATA == write_data[i];
-            })
+            }) `uvm_error("RNDFAIL", "Write randomize failed")
+            `uvm_info(get_type_name(), $sformatf("Sending %0dth beat of burst write request to addr %h...", 
+                                                    i, req.HADDR), UVM_MEDIUM)
+            finish_item(req);
+            
+        end
+        //repeat(4) get_response(rsp);
+        for (int i = 0; i < 4; i++) begin
+            get_response(rsp);
+            `uvm_info(get_type_name(), $sformatf("Got response:\n%s", rsp.sprint()), UVM_MEDIUM)
         end
 
         // 2. INCR4 Read Burst
         `uvm_info(get_type_name(), "Starting INCR4 Read Burst", UVM_MEDIUM)
         for (int i = 0; i < 4; i++) begin
-            `uvm_do_with(req, {
+            req = ahb_sequence_item::type_id::create("req");
+            start_item(req);
+            htrans = (i == 0) ? NONSEQ : SEQ;
+            if (!req.randomize() with {
                 HWRITE == 1'b0;
-                HTRANS == (i == 0) ? NONSEQ : SEQ;
+                HTRANS == htrans;
                 HBURST == INCR4;
-                HADDR == start_addr + (i * 4);
+                HADDR == start_addr + (i * 4); // since hsize = word 
                 HSIZE == HSIZE_WORD;
-            })
-            read_data[i] = req.HRDATA;
+            }) `uvm_error("RNDFAIL", "Read randomize failed")
+            `uvm_info(get_type_name(), $sformatf("Sending %0dth beat of burst read request to addr %h...", 
+                                                    i, req.HADDR), UVM_MEDIUM)
+            finish_item(req);
+        end
+        
+        for (int i = 0; i < 4; i++) begin
+            get_response(rsp);
+            read_data[i] = rsp.HRDATA;
+            `uvm_info(get_type_name(), $sformatf("Got response:\n%s", rsp.sprint()), UVM_MEDIUM)
         end
 
         // 3. Verification
@@ -455,6 +494,8 @@ class ahb_driver extends uvm_driver#(ahb_sequence_item);
     // A simple memory model for the subordinate
     logic [31:0] mem [255:0];
 
+    int beats_left = 0;
+
     `uvm_component_utils(ahb_driver)
 
     function new(string name = "ahb_driver", uvm_component parent = null);
@@ -463,37 +504,71 @@ class ahb_driver extends uvm_driver#(ahb_sequence_item);
 
     virtual task run_phase(uvm_phase phase);
         if (cfg.agent_type == MANAGER) begin
-            drive_idle();
+            init_manager();
             manager_get_put_loop();
         end else begin // SUBORDINATE
+            init_subordinate();
             subordinate_run_phase();
         end
+    endtask
+
+    virtual protected task init_manager();
+        cfg.vif.HWRITE <= 0;
+        cfg.vif.HADDR <= 0;
+        cfg.vif.HWDATA <= '0; 
+        cfg.vif.HTRANS <= IDLE;
+        cfg.vif.HBURST <= SINGLE;
+        cfg.vif.HMASTLOCK <= '0; 
+        cfg.vif.HPROT <= '0; 
+        cfg.vif.HSIZE <= '0;
+        cfg.vif.HWSTRB <= '0;
+    endtask
+
+    virtual protected task init_subordinate();
+        cfg.vif.HRDATA <= '0;
+        cfg.vif.HREADYOUT <= '0;
+        cfg.vif.HRESP <= '0;
     endtask
 
     // This is the main manager loop based on the get/put pattern.
     virtual task manager_get_put_loop();
         forever begin
             seq_item_port.get(req);
+            `uvm_info(get_type_name(), $sformatf("DRV_START: Received req of %0d ID\n%s", 
+                                        req.get_transaction_id(), req.sprint()), UVM_MEDIUM)
             assert($cast(rsp, req.clone()));
             rsp.set_id_info(req);
-            drive_transfer();
+            drive_transfer(rsp);
         end
     endtask
 
     // This task orchestrates the pipelined transfer.
-    virtual task drive_transfer();
-        `uvm_info(get_type_name(), $sformatf("DRV_START: Starting transfer for req\n%s", rsp.sprint()), UVM_MEDIUM)
+    virtual task drive_transfer(ahb_sequence_item rsp);
+        `uvm_info(get_type_name(), $sformatf("DRV_START: Starting transfer for req of %0d ID\n%s", 
+                                              rsp.get_transaction_id(), rsp.sprint()), UVM_MEDIUM)
         // Drive the address phase for this transaction
         drive_address_phase(rsp);
+
+        // if first beat of a burst
+        if (rsp.HTRANS == NONSEQ && is_burst(rsp.HBURST))
+            beats_left = get_burst_length(rsp.HBURST);
 
         // Fork a process to handle the data phase and completion
         fork
             begin
                 // Data phase for the transaction begins on the next clock edge.
                 @(cfg.vif.manager_cb);
+                `uvm_info(get_type_name(), $sformatf("DATA_PHASE: Starting data phase of %0d ID", 
+                                                        rsp.get_transaction_id()), UVM_MEDIUM)
 
                 if (cfg.vif.manager_cb.HBURST == SINGLE) begin
                     cfg.vif.manager_cb.HTRANS <= IDLE;
+                end
+                else if (is_burst(rsp.HBURST)) begin
+                    --beats_left;
+                    if (rsp.HTRANS != INCR && beats_left == 0) begin // if not undefined length burst
+                        cfg.vif.manager_cb.HTRANS <= IDLE;
+                    end
                 end
 
                 // Drive write data during the data phase.
@@ -504,6 +579,8 @@ class ahb_driver extends uvm_driver#(ahb_sequence_item);
                 do begin
                     @(cfg.vif.manager_cb);
                 end while (cfg.vif.manager_cb.HREADY != 1'b1);
+                `uvm_info(get_type_name(), $sformatf("DATA_PHASE: Captured READY of %0d ID", 
+                                        rsp.get_transaction_id()), UVM_MEDIUM)
 
                 // Capture read data.
                 if (!rsp.HWRITE) begin
@@ -531,14 +608,6 @@ class ahb_driver extends uvm_driver#(ahb_sequence_item);
         if (item.HWRITE) begin
             cfg.vif.manager_cb.HWDATA <= item.HWDATA;
         end
-    endtask
-
-    virtual protected task drive_idle();
-        @(cfg.vif.manager_cb);
-        cfg.vif.manager_cb.HTRANS <= IDLE;
-        cfg.vif.manager_cb.HADDR <= 0;
-        cfg.vif.manager_cb.HWRITE <= 0;
-        cfg.vif.manager_cb.HBURST <= SINGLE;
     endtask
     
     virtual task subordinate_run_phase();
@@ -702,7 +771,8 @@ class ahb_monitor extends uvm_monitor;
 
             IN_BURST: begin
                 if (beat.HTRANS != SEQ) begin
-                    `uvm_error("AHB_PROTOCOL_ERROR", $sformatf("Burst started at %h of type %s terminated unexpectedly with HTRANS=%s", start_addr, active_burst_type.name(), beat.HTRANS.name()))
+                    `uvm_error("AHB_PROTOCOL_ERROR", $sformatf("Burst started at %h of type %s terminated unexpectedly with HTRANS=%s when %0d beats are left", 
+                                                                start_addr, active_burst_type.name(), beat.HTRANS.name(), beats_left))
                     burst_ap.write(burst_tr); // Publish partial burst
                     state = IDLE;
                     // TODO: Re-process the current beat as a new transaction if it was NONSEQ
@@ -722,17 +792,6 @@ class ahb_monitor extends uvm_monitor;
             end
         endcase
     endtask
-
-    function int get_burst_length(hburst_e burst);
-        case(burst)
-            SINGLE: return 1;
-            INCR4, WRAP4: return 4;
-            INCR8, WRAP8: return 8;
-            INCR16, WRAP16: return 16;
-            INCR: return -1; // Undefined length
-            default: return 1;
-        endcase
-    endfunction
 
     function uvm_analysis_port#(ahb_sequence_item) get_item_collected_port();
         return beat_ap;
@@ -823,12 +882,12 @@ class coverage_collector extends uvm_subscriber#(ahb_sequence_item);
         t.sprint();
         this.tr = t;
         ahb_transfer_cg.sample();
-        `uvm_info("COVERAGE", $sformatf("Sampled transaction:\n%s", t.sprint()), UVM_MEDIUM)
+        `uvm_info("COVERAGE", $sformatf("Sampled transaction:\n%s", t.sprint()), UVM_HIGH)
     endfunction
 
     function void report_phase(uvm_phase phase);
         super.report_phase(phase);
-        `uvm_info("COVERAGE_REPORT", $sformatf("AHB Transfer Coverage:\n%3.2f%%", ahb_transfer_cg.get_inst_coverage()), UVM_LOW)
+        `uvm_info("COVERAGE_REPORT", $sformatf("AHB Transfer Coverage:%3.2f%%", ahb_transfer_cg.get_inst_coverage()), UVM_LOW)
     endfunction
 
 endclass
@@ -1007,6 +1066,7 @@ class incr4_write_read_test extends base_test;
         phase.raise_objection(this);
 
         seq = ahb_incr4_write_read_sequence::type_id::create("seq");
+        assert(seq.randomize());
         seq.start(env.manager_agent.sequencer);
 
         #200ns; // Longer delay for the burst
@@ -1109,7 +1169,7 @@ module tb_top;
 
     // Clock and Reset Generation
     logic HCLK;
-    logic HRESETn;
+    logic HRESETn = 1;
 
     initial begin
         HCLK = 0;
@@ -1134,7 +1194,7 @@ module tb_top;
         uvm_config_db#(virtual ahb_if)::set(null, "uvm_test_top", "subordinate_if", ahb_if);
 
         // Run the UVM test
-        run_test("write_read_verify_test");
+        run_test("incr4_write_read_test");
     end
 
 endmodule

@@ -76,10 +76,9 @@ class coverage_collector extends uvm_subscriber#(ahb_sequence_item);
 
     // The write method is called by the analysis port to sample the transaction
     function void write(ahb_sequence_item t);
-        t.sprint();
         this.tr = t;
         ahb_transfer_cg.sample();
-        `uvm_info("COVERAGE", $sformatf("Sampled transaction:\n%s", t.sprint()), UVM_MEDIUM)
+        `uvm_info("COVERAGE", $sformatf("Sampled transaction:\n%s", t.sprint()), UVM_HIGH)
     endfunction
 
     function void report_phase(uvm_phase phase);

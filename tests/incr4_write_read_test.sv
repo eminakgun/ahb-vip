@@ -12,6 +12,7 @@ class incr4_write_read_test extends base_test;
         phase.raise_objection(this);
 
         seq = ahb_incr4_write_read_sequence::type_id::create("seq");
+        assert(seq.randomize());
         seq.start(env.manager_agent.sequencer);
 
         #200ns; // Longer delay for the burst
