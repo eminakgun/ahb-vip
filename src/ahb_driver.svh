@@ -24,17 +24,15 @@ class ahb_driver extends uvm_driver#(ahb_sequence_item);
     // This is the main manager loop based on the get/put pattern.
     virtual task manager_get_put_loop();
         forever begin
-            //ahb_sequence_item req, rsp;
             seq_item_port.get(req);
-            drive_transfer(req, rsp);
+            assert($cast(rsp, req.clone()));
+            rsp.set_id_info(req);
+            drive_transfer();
         end
     endtask
 
     // This task orchestrates the pipelined transfer.
-    virtual task drive_transfer(input ahb_sequence_item req, output ahb_sequence_item rsp);
-        assert($cast(rsp, req.clone()));
-        rsp.set_id_info(req);
-
+    virtual task drive_transfer();
         // Drive the address phase for this transaction
         drive_address_phase(rsp);
 
@@ -134,6 +132,7 @@ class ahb_driver extends uvm_driver#(ahb_sequence_item);
                     // Stop driving HRDATA during write transfers
                     cfg.vif.subordinate_cb.HRDATA <= 'z;
                 end
+                //seq_item_port.put(rsp);
             end else begin
                 // No new transfer is starting.
                 data_phase_active = 0;

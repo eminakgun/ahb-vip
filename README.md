@@ -74,10 +74,11 @@ The goal of the MVP is to verify basic, zero-wait-state, single and simple burst
     *   [x] **Subordinate Driver:** Must be able to handle a sequence of back-to-back transfers that form a burst.
     *   [ ] **Monitor:** Identify and reconstruct full bursts.
 
-*   [ ] Create MVP-Level Tests
-    *   [ ] `test_single_read`: A single read to the Subordinate.
+*   [x] Create MVP-Level Tests
+    *   [x] `test_single_read`: A single read to the Subordinate.
     *   [x] `test_single_write`: A single write to the Subordinate, verified with a read-back.
-    *   [ ] `test_incr4_write_read`: Perform a 4-beat write burst, then read back the same locations to verify data integrity.
+    *   [x] `test_write_read_verify`: A sequence writes a random value, reads it back, and verifies the data within the sequence.
+    *   [x] `test_incr4_write_read`: Perform a 4-beat write burst, then read back the same locations to verify data integrity.
 
 ---
 

@@ -30,7 +30,7 @@ module tb_top;
         uvm_config_db#(virtual ahb_if)::set(null, "uvm_test_top", "subordinate_if", ahb_if);
 
         // Run the UVM test
-        run_test("single_write_test");
+        run_test("write_read_verify_test");
     end
 
 endmodule

@@ -8,6 +8,7 @@ class ahb_single_read_sequence extends uvm_sequence#(ahb_sequence_item);
 
     virtual task body();
         `uvm_info(get_type_name(), "Sending single read request...", UVM_MEDIUM)
+        req = ahb_sequence_item::type_id::create("req");
         start_item(req);
         if (!req.randomize() with {
             HWRITE == 1'b0;
