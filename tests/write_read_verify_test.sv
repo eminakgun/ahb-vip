@@ -13,7 +13,6 @@ class write_read_verify_test extends base_test;
 
         // Create and start the sequence
         seq = ahb_write_read_verify_sequence::type_id::create("seq");
-        // Let the sequence choose a random address and data
         assert(seq.randomize());
         seq.start(env.manager_agent.sequencer);
 

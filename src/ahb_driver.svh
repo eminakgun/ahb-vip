@@ -33,6 +33,7 @@ class ahb_driver extends uvm_driver#(ahb_sequence_item);
 
     // This task orchestrates the pipelined transfer.
     virtual task drive_transfer();
+        `uvm_info(get_type_name(), $sformatf("DRV_START: Starting transfer for req\n%s", rsp.sprint()), UVM_MEDIUM)
         // Drive the address phase for this transaction
         drive_address_phase(rsp);
 
@@ -57,8 +58,11 @@ class ahb_driver extends uvm_driver#(ahb_sequence_item);
 
                 // Capture read data.
                 if (!rsp.HWRITE) begin
+                    `uvm_info(get_type_name(), $sformatf("DRV_READ: Reading HRDATA from VIF: 0x%0h", cfg.vif.manager_cb.HRDATA), UVM_MEDIUM)
                     rsp.HRDATA = cfg.vif.manager_cb.HRDATA;
+                    `uvm_info(get_type_name(), $sformatf("DRV_READ: Captured HRDATA in rsp: 0x%0h", rsp.HRDATA), UVM_MEDIUM)
                 end
+                `uvm_info(get_type_name(), $sformatf("DRV_DONE: Sending response:\n%s", rsp.sprint()), UVM_MEDIUM)
                 seq_item_port.put(rsp); // signal to calling sequence
             end
         join_none

@@ -40,10 +40,12 @@ class base_test extends uvm_test;
         manager_cfg.vif = manager_vif;
         manager_cfg.is_active = UVM_ACTIVE;
         manager_cfg.agent_type = MANAGER;
+        manager_cfg.en_cov = 1;
 
         subordinate_cfg.vif = subordinate_vif;
         subordinate_cfg.is_active = UVM_ACTIVE;
         subordinate_cfg.agent_type = SUBORDINATE;
+        subordinate_cfg.en_cov = 0;
 
         // Assign config objects to env properties
         env.manager_cfg = manager_cfg;

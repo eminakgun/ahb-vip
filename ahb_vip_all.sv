@@ -306,57 +306,68 @@ class ahb_write_read_verify_sequence extends uvm_sequence#(ahb_sequence_item);
     bit [31:0] wr_data;
     bit [31:0] rd_data;
 
+    rand int iter = 0;
+
+    constraint c_iter {
+        iter inside {[1:10]};
+    }
+
     function new(string name = "ahb_write_read_verify_sequence");
         super.new(name);
     endfunction
 
     virtual task body();
-        // 1. Send a single WRITE transaction
-        `uvm_info(get_type_name(), $sformatf("Sending single write request to addr %h...", addr), UVM_MEDIUM)
-        begin
-            ahb_sequence_item wr_req = ahb_sequence_item::type_id::create("wr_req");
-            start_item(wr_req);
-            if (!wr_req.randomize() with {
-                HWRITE == 1'b1;
-                HTRANS == NONSEQ;
-                HBURST == SINGLE;
-                HSIZE == HSIZE_WORD;
-            }) `uvm_error("RNDFAIL", "Write randomize failed")
-            finish_item(wr_req);
+        `uvm_info(get_type_name(), $sformatf("Iteration count: %0d", iter), UVM_MEDIUM)
+        repeat(iter) begin
+            // 1. Send a single WRITE transaction
+            begin
+                ahb_sequence_item wr_req = ahb_sequence_item::type_id::create("wr_req");
+                start_item(wr_req);
+                if (!wr_req.randomize() with {
+                    HWRITE == 1'b1;
+                    HTRANS == NONSEQ;
+                    HBURST == SINGLE;
+                    HSIZE == HSIZE_WORD;
+                }) `uvm_error("RNDFAIL", "Write randomize failed")
+                `uvm_info(get_type_name(), $sformatf("Sending single write request to addr %h...", wr_req.HADDR), UVM_MEDIUM)
+                finish_item(wr_req);
 
-            addr = wr_req.HADDR; // save write addr and data
-            wr_data = wr_req.HWDATA; // save write addr and data
+                // save write addr and data to compare later
+                addr = wr_req.HADDR; 
+                wr_data = wr_req.HWDATA;
 
-            // Consume the response to prevent response queue overflow
-            get_response(rsp);
+                // Consume the response to prevent response queue overflow
+                get_response(rsp);
+            end
+
+            // 2. Send a single READ transaction to the same address
+            `uvm_info(get_type_name(), $sformatf("Sending single read request to addr %h to verify...", addr), UVM_MEDIUM)
+            begin
+                ahb_sequence_item rd_req = ahb_sequence_item::type_id::create("rd_req");
+                start_item(rd_req);
+                if (!rd_req.randomize() with {
+                    HWRITE == 1'b0;
+                    HTRANS == NONSEQ;
+                    HBURST == SINGLE;
+                    HADDR == addr;
+                    HSIZE == HSIZE_WORD;
+                }) `uvm_error("RNDFAIL", "Read randomize failed")
+                finish_item(rd_req);
+
+                // Get the response for the read transaction
+                get_response(rsp);
+                rd_data = rsp.HRDATA;
+            end
+
+            // 3. Verify the read data from the second response
+            `uvm_info(get_type_name(), $sformatf("Read back data: %h", rsp.HRDATA), UVM_MEDIUM)
+            if (rd_data == wr_data) begin
+                `uvm_info(get_type_name(), $sformatf("SUCCESS: Read data %h matches written data %h.", rsp.HRDATA, wr_data), UVM_LOW)
+            end else begin
+                `uvm_error(get_type_name(), $sformatf("FAILURE: Read data %h does not match written data %h", rsp.HRDATA, wr_data))
+            end
         end
-
-        // 2. Send a single READ transaction to the same address
-        `uvm_info(get_type_name(), $sformatf("Sending single read request to addr %h to verify...", addr), UVM_MEDIUM)
-        begin
-            ahb_sequence_item rd_req = ahb_sequence_item::type_id::create("rd_req");
-            start_item(rd_req);
-            if (!rd_req.randomize() with {
-                HWRITE == 1'b0;
-                HTRANS == NONSEQ;
-                HBURST == SINGLE;
-                HADDR == addr;
-                HSIZE == HSIZE_WORD;
-            }) `uvm_error("RNDFAIL", "Read randomize failed")
-            finish_item(rd_req);
-
-            // Get the response for the read transaction
-            get_response(rsp);
-            rsp.HRDATA = rd_data;
-        end
-
-        // 3. Verify the read data from the second response
-        `uvm_info(get_type_name(), $sformatf("Read back data: %h", rsp.HRDATA), UVM_MEDIUM)
-        if (rd_data == wr_data) begin
-            `uvm_info(get_type_name(), $sformatf("SUCCESS: Read data %h matches written data %h.", rsp.HRDATA, wr_data), UVM_LOW)
-        end else begin
-            `uvm_error(get_type_name(), $sformatf("FAILURE: Read data %h does not match written data %h", rsp.HRDATA, wr_data))
-        end
+        
     endtask
 
 endclass
@@ -471,6 +482,7 @@ class ahb_driver extends uvm_driver#(ahb_sequence_item);
 
     // This task orchestrates the pipelined transfer.
     virtual task drive_transfer();
+        `uvm_info(get_type_name(), $sformatf("DRV_START: Starting transfer for req\n%s", rsp.sprint()), UVM_MEDIUM)
         // Drive the address phase for this transaction
         drive_address_phase(rsp);
 
@@ -495,8 +507,11 @@ class ahb_driver extends uvm_driver#(ahb_sequence_item);
 
                 // Capture read data.
                 if (!rsp.HWRITE) begin
+                    `uvm_info(get_type_name(), $sformatf("DRV_READ: Reading HRDATA from VIF: 0x%0h", cfg.vif.manager_cb.HRDATA), UVM_MEDIUM)
                     rsp.HRDATA = cfg.vif.manager_cb.HRDATA;
+                    `uvm_info(get_type_name(), $sformatf("DRV_READ: Captured HRDATA in rsp: 0x%0h", rsp.HRDATA), UVM_MEDIUM)
                 end
+                `uvm_info(get_type_name(), $sformatf("DRV_DONE: Sending response:\n%s", rsp.sprint()), UVM_MEDIUM)
                 seq_item_port.put(rsp); // signal to calling sequence
             end
         join_none
@@ -728,7 +743,6 @@ endclass
 
   // --- Content from ahb_coverage.svh ---
 class coverage_collector extends uvm_subscriber#(ahb_sequence_item);
-
     `uvm_component_utils(coverage_collector)
 
     // Transaction item to be sampled
@@ -765,6 +779,38 @@ class coverage_collector extends uvm_subscriber#(ahb_sequence_item);
             bins write = {1'b1};
             bins read  = {1'b0};
         }
+
+        // Cover Address, with a few example bins
+        cp_addr: coverpoint tr.HADDR {
+            bins zero = {0};
+            bins max  = {'1};
+            bins addr[5] = {[0:'1]};
+        }
+
+        // Cover Write Data, with a few example bins
+        cp_wdata: coverpoint tr.HWDATA iff (tr.HWRITE == 1) {
+            bins zero = {0};
+            bins max  = {'1};
+            bins wdata[5] = {[0:'1]};
+        }
+
+        // Cover Read Data, with a few example bins
+        cp_rdata: coverpoint tr.HRDATA iff (tr.HWRITE == 0) {
+            bins zero = {0};
+            bins max  = {'1};
+            bins rdata[5] = {[0:'1]};
+        }
+
+        // Cross coverage for key control signals
+        cross_rw_burst: cross cp_hwrite, cp_hburst;
+        cross_rw_size: cross cp_hwrite, cp_hsize;
+        cross_rw_xfer_type: cross cp_hwrite, cp_htrans;
+        cross_rw_rdata_addr: cross cp_hwrite, cp_rdata, cp_addr {
+            bins c3 = binsof(cp_hwrite.read);
+        }
+        cross_rw_wdata_addr: cross cp_hwrite, cp_wdata, cp_addr {
+            bins c3 = binsof(cp_hwrite.write);
+        }
     endgroup
 
     function new(string name = "coverage_collector", uvm_component parent = null);
@@ -774,14 +820,15 @@ class coverage_collector extends uvm_subscriber#(ahb_sequence_item);
 
     // The write method is called by the analysis port to sample the transaction
     function void write(ahb_sequence_item t);
+        t.sprint();
         this.tr = t;
         ahb_transfer_cg.sample();
-        `uvm_info("COVERAGE", $sformatf("Sampled transaction: %s", t.sprint()), UVM_HIGH)
+        `uvm_info("COVERAGE", $sformatf("Sampled transaction:\n%s", t.sprint()), UVM_MEDIUM)
     endfunction
 
     function void report_phase(uvm_phase phase);
         super.report_phase(phase);
-        `uvm_info("COVERAGE_REPORT", $sformatf("AHB Transfer Coverage: %3.2f%%", ahb_transfer_cg.get_inst_coverage()), UVM_LOW)
+        `uvm_info("COVERAGE_REPORT", $sformatf("AHB Transfer Coverage:\n%3.2f%%", ahb_transfer_cg.get_inst_coverage()), UVM_LOW)
     endfunction
 
 endclass
@@ -928,10 +975,12 @@ class base_test extends uvm_test;
         manager_cfg.vif = manager_vif;
         manager_cfg.is_active = UVM_ACTIVE;
         manager_cfg.agent_type = MANAGER;
+        manager_cfg.en_cov = 1;
 
         subordinate_cfg.vif = subordinate_vif;
         subordinate_cfg.is_active = UVM_ACTIVE;
         subordinate_cfg.agent_type = SUBORDINATE;
+        subordinate_cfg.en_cov = 0;
 
         // Assign config objects to env properties
         env.manager_cfg = manager_cfg;
@@ -1040,7 +1089,6 @@ class write_read_verify_test extends base_test;
 
         // Create and start the sequence
         seq = ahb_write_read_verify_sequence::type_id::create("seq");
-        // Let the sequence choose a random address and data
         assert(seq.randomize());
         seq.start(env.manager_agent.sequencer);
 
