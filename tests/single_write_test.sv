@@ -1,5 +1,3 @@
-`include "ahb_single_write_sequence.svh"
-
 class single_write_test extends base_test;
 
     `uvm_component_utils(single_write_test)

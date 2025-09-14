@@ -1,3 +1,8 @@
+// ========================================
+// Flattened SystemVerilog AHB VIP Package
+// Generated automatically - do not edit
+// ========================================
+
 // --- Start of file: src/ahb_if.sv ---
 
 // AHB Interface
@@ -99,14 +104,17 @@ interface ahb_if#(
         input HADDR, HBURST, HMASTLOCK, HPROT, HSIZE, HTRANS, HWDATA, HWSTRB, HWRITE, HRDATA, HREADY, HRESP, HSELx;
     endclocking
 
+    /* Time zero assignments */
+    initial begin
+        
+    end
+
     // SVA: Check that HBURST remains stable throughout a burst transfer.
-    a_hburst_stable: assert property (@(posedge HCLK) (HREADY && HTRANS == SEQ) |=> $stable(HBURST)) 
+    // SEQ    = 2'b11
+    a_hburst_stable: assert property (@(posedge HCLK) (HREADY && HTRANS == 2'b11) |=> $stable(HBURST))
         else $error("SVA Error: HBURST changed value mid-burst.");
 
- endinterface
-
 endinterface
-
 // --- End of file: src/ahb_if.sv ---
 
 // --- Start of file: src/ahb_pkg.sv (flattened) ---
@@ -116,6 +124,7 @@ package ahb_pkg;
 
     `include "uvm_macros.svh"
 
+  // --- Content from ahb_types.svh ---
 
 // HTRANS values
 typedef enum logic [1:0] {
@@ -151,8 +160,9 @@ typedef enum logic [2:0] {
     HSIZE_32_WORD = 3'b110,
     HSIZE_64_WORD = 3'b111
 } hsize_e;
+  // --- End of ahb_types.svh ---
 
-
+  // --- Content from ahb_config.svh ---
 
 class ahb_config extends uvm_object;
 
@@ -170,9 +180,10 @@ class ahb_config extends uvm_object;
     endfunction
 
 endclass
+  // --- End of ahb_config.svh ---
 
 
-
+  // --- Content from ahb_sequence_item.svh ---
 
 class ahb_sequence_item extends uvm_sequence_item;
 
@@ -182,6 +193,7 @@ class ahb_sequence_item extends uvm_sequence_item;
     rand bit [31:0] HWDATA;
     rand bit [31:0] HRDATA;
     rand bit [3:0] HWSTRB;
+    rand bit [3:0] HPROT;
     rand htrans_e HTRANS;
     rand hsize_e HSIZE;
     rand hburst_e HBURST;
@@ -211,12 +223,13 @@ class ahb_sequence_item extends uvm_sequence_item;
     }
 
 endclass
+  // --- End of ahb_sequence_item.svh ---
 
-
+  // --- Content from ahb_burst_transaction.svh ---
 class ahb_burst_transaction extends uvm_object;
 
     // Array of individual beats that form the burst
-    ahb_sequence_item beats[];
+    ahb_sequence_item beats[$];
 
     `uvm_object_utils(ahb_burst_transaction)
 
@@ -230,8 +243,9 @@ class ahb_burst_transaction extends uvm_object;
     endfunction
 
 endclass
+  // --- End of ahb_burst_transaction.svh ---
 
-
+  // --- Content from ahb_single_write_sequence.svh ---
 class ahb_single_write_sequence extends uvm_sequence#(ahb_sequence_item);
 
     `uvm_object_utils(ahb_single_write_sequence)
@@ -242,6 +256,7 @@ class ahb_single_write_sequence extends uvm_sequence#(ahb_sequence_item);
 
     virtual task body();
         `uvm_info(get_type_name(), "Sending single write request...", UVM_MEDIUM)
+        req = ahb_sequence_item::type_id::create("req");
         start_item(req);
         if (!req.randomize() with {
             HWRITE == 1'b1;
@@ -257,8 +272,9 @@ class ahb_single_write_sequence extends uvm_sequence#(ahb_sequence_item);
     endtask
 
 endclass
+  // --- End of ahb_single_write_sequence.svh ---
 
-
+  // --- Content from ahb_single_read_sequence.svh ---
 class ahb_single_read_sequence extends uvm_sequence#(ahb_sequence_item);
 
     `uvm_object_utils(ahb_single_read_sequence)
@@ -283,8 +299,9 @@ class ahb_single_read_sequence extends uvm_sequence#(ahb_sequence_item);
     endtask
 
 endclass
+  // --- End of ahb_single_read_sequence.svh ---
 
-
+  // --- Content from ahb_write_read_verify_sequence.svh ---
 class ahb_write_read_verify_sequence extends uvm_sequence#(ahb_sequence_item);
 
     `uvm_object_utils(ahb_write_read_verify_sequence)
@@ -336,8 +353,9 @@ class ahb_write_read_verify_sequence extends uvm_sequence#(ahb_sequence_item);
     endtask
 
 endclass
+  // --- End of ahb_write_read_verify_sequence.svh ---
 
-
+  // --- Content from ahb_incr4_write_read_sequence.svh ---
 class ahb_incr4_write_read_sequence extends uvm_sequence#(ahb_sequence_item);
 
     `uvm_object_utils(ahb_incr4_write_read_sequence)
@@ -346,9 +364,12 @@ class ahb_incr4_write_read_sequence extends uvm_sequence#(ahb_sequence_item);
     rand bit[31:0] write_data[4];
     bit[31:0] read_data[4];
 
+    constraint c_addr { 
+        start_addr inside {[32'h0:32'hF0]}; 
+    }
+
     function new(string name = "ahb_incr4_write_read_sequence");
         super.new(name);
-        constraint c_addr { start_addr inside {[32'h0:32'hF0]}; }
     endfunction
 
     virtual task body();
@@ -390,8 +411,9 @@ class ahb_incr4_write_read_sequence extends uvm_sequence#(ahb_sequence_item);
     endtask
 
 endclass
+  // --- End of ahb_incr4_write_read_sequence.svh ---
 
-
+  // --- Content from ahb_sequencer.svh ---
 
 class ahb_sequencer extends uvm_sequencer#(ahb_sequence_item);
 
@@ -404,8 +426,9 @@ class ahb_sequencer extends uvm_sequencer#(ahb_sequence_item);
     endfunction
 
 endclass
+  // --- End of ahb_sequencer.svh ---
 
-
+  // --- Content from ahb_driver.svh ---
 
 class ahb_driver extends uvm_driver#(ahb_sequence_item);
 
@@ -421,21 +444,18 @@ class ahb_driver extends uvm_driver#(ahb_sequence_item);
     endfunction
 
     virtual task run_phase(uvm_phase phase);
-        if (cfg.is_active == UVM_PASSIVE) return;
-
-        drive_idle();
-
         if (cfg.agent_type == MANAGER) begin
-            manager_get_put_loop(phase);
+            drive_idle();
+            manager_get_put_loop();
         end else begin // SUBORDINATE
-            subordinate_run_phase(phase);
+            subordinate_run_phase();
         end
     endtask
 
     // This is the main manager loop based on the get/put pattern.
-    virtual task manager_get_put_loop(uvm_phase phase);
+    virtual task manager_get_put_loop();
         forever begin
-            ahb_sequence_item req, rsp;
+            //ahb_sequence_item req, rsp;
             seq_item_port.get(req);
             drive_transfer(req, rsp);
         end
@@ -444,6 +464,7 @@ class ahb_driver extends uvm_driver#(ahb_sequence_item);
     // This task orchestrates the pipelined transfer.
     virtual task drive_transfer(input ahb_sequence_item req, output ahb_sequence_item rsp);
         assert($cast(rsp, req.clone()));
+        rsp.set_id_info(req);
 
         // Drive the address phase for this transaction
         drive_address_phase(rsp);
@@ -454,6 +475,10 @@ class ahb_driver extends uvm_driver#(ahb_sequence_item);
                 // Data phase for the transaction begins on the next clock edge.
                 @(cfg.vif.manager_cb);
 
+                if (cfg.vif.manager_cb.HBURST == SINGLE) begin
+                    cfg.vif.manager_cb.HTRANS <= IDLE;
+                end
+
                 // Drive write data during the data phase.
                 drive_data_phase(rsp);
 
@@ -461,7 +486,7 @@ class ahb_driver extends uvm_driver#(ahb_sequence_item);
                 // This loop finishes on the clock edge where HREADY is high.
                 do begin
                     @(cfg.vif.manager_cb);
-                end while (cfg.vif.manager_cb.HREADY == 1'b0) 
+                end while (cfg.vif.manager_cb.HREADY != 1'b1);
 
                 // Capture read data.
                 if (!rsp.HWRITE) begin
@@ -495,8 +520,8 @@ class ahb_driver extends uvm_driver#(ahb_sequence_item);
         cfg.vif.manager_cb.HWRITE <= 0;
         cfg.vif.manager_cb.HBURST <= SINGLE;
     endtask
-
-    virtual task subordinate_run_phase(uvm_phase phase);
+    
+    virtual task subordinate_run_phase();
         logic data_phase_active = 0;
         logic [31:0] data_phase_HADDR;
         logic data_phase_HWRITE;
@@ -550,8 +575,9 @@ class ahb_driver extends uvm_driver#(ahb_sequence_item);
     endtask
 
 endclass
+  // --- End of ahb_driver.svh ---
 
-
+  // --- Content from ahb_monitor.svh ---
 class ahb_monitor extends uvm_monitor;
 
     ahb_config cfg;
@@ -613,11 +639,12 @@ class ahb_monitor extends uvm_monitor;
                 addr_phase_tr = ahb_sequence_item::type_id::create("addr_phase_tr");
                 addr_phase_tr.HADDR  = cfg.vif.monitor_cb.HADDR;
                 addr_phase_tr.HWRITE = cfg.vif.monitor_cb.HWRITE;
-                addr_phase_tr.HSIZE  = cfg.vif.monitor_cb.HSIZE;
-                addr_phase_tr.HTRANS = cfg.vif.monitor_cb.HTRANS;
                 addr_phase_tr.HWSTRB = cfg.vif.monitor_cb.HWSTRB;
-                addr_phase_tr.HBURST = cfg.vif.monitor_cb.HBURST;
                 addr_phase_tr.HPROT  = cfg.vif.monitor_cb.HPROT;
+
+                assert($cast(addr_phase_tr.HSIZE , cfg.vif.monitor_cb.HSIZE));
+                assert($cast(addr_phase_tr.HBURST, cfg.vif.monitor_cb.HBURST));
+                assert($cast(addr_phase_tr.HTRANS, cfg.vif.monitor_cb.HTRANS));
                 addr_phase_valid = 1;
             end
         end
@@ -686,9 +713,14 @@ class ahb_monitor extends uvm_monitor;
         endcase
     endfunction
 
+    function uvm_analysis_port#(ahb_sequence_item) get_item_collected_port();
+        return beat_ap;
+    endfunction
+
 endclass
+  // --- End of ahb_monitor.svh ---
 
-
+  // --- Content from ahb_agent.svh ---
 
 
 
@@ -738,8 +770,9 @@ class ahb_agent extends uvm_agent;
     endfunction
 
 endclass
+  // --- End of ahb_agent.svh ---
 
-
+  // --- Content from ahb_env.svh ---
 
 class ahb_env extends uvm_env;
 
@@ -771,7 +804,7 @@ class ahb_env extends uvm_env;
     endfunction
 
 endclass
-
+  // --- End of ahb_env.svh ---
 
 
 endpackage// --- End of file: src/ahb_pkg.sv (flattened) ---
@@ -834,6 +867,116 @@ endclass
 
 // --- End of file: tests/base_test.sv ---
 
+// --- Start of file: tests/incr4_write_read_test.sv ---
+class incr4_write_read_test extends base_test;
+
+    `uvm_component_utils(incr4_write_read_test)
+
+    function new(string name = "incr4_write_read_test", uvm_component parent = null);
+        super.new(name, parent);
+    endfunction
+
+    virtual task run_phase(uvm_phase phase);
+        ahb_incr4_write_read_sequence seq;
+
+        phase.raise_objection(this);
+
+        seq = ahb_incr4_write_read_sequence::type_id::create("seq");
+        seq.start(env.manager_agent.sequencer);
+
+        #200ns; // Longer delay for the burst
+
+        phase.drop_objection(this);
+    endtask
+
+endclass
+
+// --- End of file: tests/incr4_write_read_test.sv ---
+
+// --- Start of file: tests/single_read_test.sv ---
+class single_read_test extends base_test;
+
+    `uvm_component_utils(single_read_test)
+
+    function new(string name = "single_read_test", uvm_component parent = null);
+        super.new(name, parent);
+    endfunction
+
+    virtual task run_phase(uvm_phase phase);
+        ahb_single_read_sequence seq;
+
+        phase.raise_objection(this);
+
+        // Create and start the sequence
+        seq = ahb_single_read_sequence::type_id::create("seq");
+        seq.start(env.manager_agent.sequencer);
+
+        #100ns;
+
+        phase.drop_objection(this);
+    endtask
+
+endclass
+
+// --- End of file: tests/single_read_test.sv ---
+
+// --- Start of file: tests/single_write_test.sv ---
+class single_write_test extends base_test;
+
+    `uvm_component_utils(single_write_test)
+
+    function new(string name = "single_write_test", uvm_component parent = null);
+        super.new(name, parent);
+    endfunction
+
+    virtual task run_phase(uvm_phase phase);
+        ahb_single_write_sequence seq;
+
+        phase.raise_objection(this);
+
+        // Create and start the sequence
+        seq = ahb_single_write_sequence::type_id::create("seq");
+        seq.start(env.manager_agent.sequencer);
+        
+        // Add a small delay to let the transfer complete
+        #100ns;
+
+        phase.drop_objection(this);
+    endtask
+
+endclass
+
+// --- End of file: tests/single_write_test.sv ---
+
+// --- Start of file: tests/write_read_verify_test.sv ---
+class write_read_verify_test extends base_test;
+
+    `uvm_component_utils(write_read_verify_test)
+
+    function new(string name = "write_read_verify_test", uvm_component parent = null);
+        super.new(name, parent);
+    endfunction
+
+    virtual task run_phase(uvm_phase phase);
+        ahb_write_read_verify_sequence seq;
+
+        phase.raise_objection(this);
+
+        // Create and start the sequence
+        seq = ahb_write_read_verify_sequence::type_id::create("seq");
+        // Let the sequence choose a random address and data
+        assert(seq.randomize());
+        seq.start(env.manager_agent.sequencer);
+
+        #200ns;
+
+        phase.drop_objection(this);
+    endtask
+
+endclass
+
+// --- End of file: tests/write_read_verify_test.sv ---
+
 // --- Start of file: tb_top.sv ---
 
 `timescale 1ns / 1ps
@@ -849,24 +992,25 @@ module tb_top;
         forever #5 HCLK = ~HCLK; // 100 MHz clock
     end
 
-    initial begin
-        HRESETn = 0;
-        #100; // Hold reset for 100ns
-        HRESETn = 1;
-    end
-
     // Instantiate AHB Interfaces
-    ahb_if#(32, 32) manager_if(.HCLK(HCLK), .HRESETn(HRESETn));
-    ahb_if#(32, 32) subordinate_if(.HCLK(HCLK), .HRESETn(HRESETn));
+    ahb_if#(32, 32) ahb_if(.HCLK(HCLK), .HRESETn(HRESETn));
+
+    // Since there's no interconnect to decide which HREADY to route
+    // and which subordinate to be selected,
+    assign ahb_if.HREADY = ahb_if.HREADYOUT;
+    assign ahb_if.HSELx = 1'b1;
 
     // Instantiate the UVM testbench
     initial begin
+        $dumpfile("dump.vcd"); $dumpvars;
+        $timeformat(-9, 2, " ns");
+
         // Set interface handles to the config_db
-        uvm_config_db#(virtual ahb_if)::set(null, "uvm_test_top", "manager_if", manager_if);
-        uvm_config_db#(virtual ahb_if)::set(null, "uvm_test_top", "subordinate_if", subordinate_if);
+        uvm_config_db#(virtual ahb_if)::set(null, "uvm_test_top", "manager_if", ahb_if);
+        uvm_config_db#(virtual ahb_if)::set(null, "uvm_test_top", "subordinate_if", ahb_if);
 
         // Run the UVM test
-        run_test("base_test");
+        run_test("single_write_test");
     end
 
 endmodule

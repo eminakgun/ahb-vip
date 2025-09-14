@@ -24,7 +24,7 @@ class ahb_driver extends uvm_driver#(ahb_sequence_item);
     // This is the main manager loop based on the get/put pattern.
     virtual task manager_get_put_loop();
         forever begin
-            ahb_sequence_item req, rsp;
+            //ahb_sequence_item req, rsp;
             seq_item_port.get(req);
             drive_transfer(req, rsp);
         end
@@ -43,6 +43,10 @@ class ahb_driver extends uvm_driver#(ahb_sequence_item);
             begin
                 // Data phase for the transaction begins on the next clock edge.
                 @(cfg.vif.manager_cb);
+
+                if (cfg.vif.manager_cb.HBURST == SINGLE) begin
+                    cfg.vif.manager_cb.HTRANS <= IDLE;
+                end
 
                 // Drive write data during the data phase.
                 drive_data_phase(rsp);
@@ -85,7 +89,7 @@ class ahb_driver extends uvm_driver#(ahb_sequence_item);
         cfg.vif.manager_cb.HWRITE <= 0;
         cfg.vif.manager_cb.HBURST <= SINGLE;
     endtask
-
+    
     virtual task subordinate_run_phase();
         logic data_phase_active = 0;
         logic [31:0] data_phase_HADDR;

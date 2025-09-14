@@ -59,11 +59,12 @@ class ahb_monitor extends uvm_monitor;
                 addr_phase_tr = ahb_sequence_item::type_id::create("addr_phase_tr");
                 addr_phase_tr.HADDR  = cfg.vif.monitor_cb.HADDR;
                 addr_phase_tr.HWRITE = cfg.vif.monitor_cb.HWRITE;
-                addr_phase_tr.HSIZE  = cfg.vif.monitor_cb.HSIZE;
-                addr_phase_tr.HTRANS = cfg.vif.monitor_cb.HTRANS;
                 addr_phase_tr.HWSTRB = cfg.vif.monitor_cb.HWSTRB;
-                addr_phase_tr.HBURST = cfg.vif.monitor_cb.HBURST;
                 addr_phase_tr.HPROT  = cfg.vif.monitor_cb.HPROT;
+
+                assert($cast(addr_phase_tr.HSIZE , cfg.vif.monitor_cb.HSIZE));
+                assert($cast(addr_phase_tr.HBURST, cfg.vif.monitor_cb.HBURST));
+                assert($cast(addr_phase_tr.HTRANS, cfg.vif.monitor_cb.HTRANS));
                 addr_phase_valid = 1;
             end
         end
