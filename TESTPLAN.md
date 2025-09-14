@@ -27,6 +27,10 @@ This document outlines the verification strategy for the AHB-VIP. The plan is di
         *   **Stimulus:** A sequence performs a 4-beat `INCR4` write burst of random data to a random starting address. It then performs a 4-beat `INCR4` read burst from the same addresses.
         *   **Checking:** The sequence compares the read-back data with the original written data for all 4 beats. The advanced monitor will also be checked to ensure it correctly captures one single burst transaction containing four beats.
         *   **Status:** **[COMPLETED]**
+    5.  **`test_back_to_back_rw`**:
+        *   **Stimulus:** A sequence that performs multiple single write and read transfers back-to-back.
+        *   **Checking:** Data integrity is maintained across multiple independent transfers.
+        *   **Status:** **[NOT STARTED]**
 
 ### **Phase 2: Post-MVP Advanced Feature Verification**
 

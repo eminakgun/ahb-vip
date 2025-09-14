@@ -79,6 +79,13 @@ The goal of the MVP is to verify basic, zero-wait-state, single and simple burst
     *   [x] `test_single_write`: A single write to the Subordinate, verified with a read-back.
     *   [x] `test_write_read_verify`: A sequence writes a random value, reads it back, and verifies the data within the sequence.
     *   [x] `test_incr4_write_read`: Perform a 4-beat write burst, then read back the same locations to verify data integrity.
+    *   [ ] `test_back_to_back_rw`: Sequences of multiple non-burst writes and reads.
+
+*   [ ] VIP Enhancements
+    *   [ ] Add basic functional coverage collection.
+    *   [ ] Implement and connect a scoreboard for write/read verification.
+    *   [ ] Refactor Subordinate driver to move memory model to the sequence level.
+    *   [ ] Refactor `ahb_burst_transaction` to `ahb_burst_item`.
 
 ---
 
