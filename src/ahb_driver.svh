@@ -13,19 +13,16 @@ class ahb_driver extends uvm_driver#(ahb_sequence_item);
     endfunction
 
     virtual task run_phase(uvm_phase phase);
-        if (cfg.is_active == UVM_PASSIVE) return;
-
-        drive_idle();
-
         if (cfg.agent_type == MANAGER) begin
-            manager_get_put_loop(phase);
+            drive_idle();
+            manager_get_put_loop();
         end else begin // SUBORDINATE
-            subordinate_run_phase(phase);
+            subordinate_run_phase();
         end
     endtask
 
     // This is the main manager loop based on the get/put pattern.
-    virtual task manager_get_put_loop(uvm_phase phase);
+    virtual task manager_get_put_loop();
         forever begin
             ahb_sequence_item req, rsp;
             seq_item_port.get(req);
@@ -36,6 +33,7 @@ class ahb_driver extends uvm_driver#(ahb_sequence_item);
     // This task orchestrates the pipelined transfer.
     virtual task drive_transfer(input ahb_sequence_item req, output ahb_sequence_item rsp);
         assert($cast(rsp, req.clone()));
+        rsp.set_id_info(req);
 
         // Drive the address phase for this transaction
         drive_address_phase(rsp);
@@ -53,7 +51,7 @@ class ahb_driver extends uvm_driver#(ahb_sequence_item);
                 // This loop finishes on the clock edge where HREADY is high.
                 do begin
                     @(cfg.vif.manager_cb);
-                end while (cfg.vif.manager_cb.HREADY == 1'b0) 
+                end while (cfg.vif.manager_cb.HREADY != 1'b1);
 
                 // Capture read data.
                 if (!rsp.HWRITE) begin
@@ -88,7 +86,7 @@ class ahb_driver extends uvm_driver#(ahb_sequence_item);
         cfg.vif.manager_cb.HBURST <= SINGLE;
     endtask
 
-    virtual task subordinate_run_phase(uvm_phase phase);
+    virtual task subordinate_run_phase();
         logic data_phase_active = 0;
         logic [31:0] data_phase_HADDR;
         logic data_phase_HWRITE;

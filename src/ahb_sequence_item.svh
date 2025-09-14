@@ -7,6 +7,7 @@ class ahb_sequence_item extends uvm_sequence_item;
     rand bit [31:0] HWDATA;
     rand bit [31:0] HRDATA;
     rand bit [3:0] HWSTRB;
+    rand bit [3:0] HPROT;
     rand htrans_e HTRANS;
     rand hsize_e HSIZE;
     rand hburst_e HBURST;

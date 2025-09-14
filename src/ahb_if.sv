@@ -99,9 +99,8 @@ interface ahb_if#(
     endclocking
 
     // SVA: Check that HBURST remains stable throughout a burst transfer.
-    a_hburst_stable: assert property (@(posedge HCLK) (HREADY && HTRANS == SEQ) |=> $stable(HBURST)) 
+    // SEQ    = 2'b11
+    a_hburst_stable: assert property (@(posedge HCLK) (HREADY && HTRANS == 2'b11) |=> $stable(HBURST))
         else $error("SVA Error: HBURST changed value mid-burst.");
-
- endinterface
 
 endinterface

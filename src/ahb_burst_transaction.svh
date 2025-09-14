@@ -1,7 +1,7 @@
 class ahb_burst_transaction extends uvm_object;
 
     // Array of individual beats that form the burst
-    ahb_sequence_item beats[];
+    ahb_sequence_item beats[$];
 
     `uvm_object_utils(ahb_burst_transaction)
 

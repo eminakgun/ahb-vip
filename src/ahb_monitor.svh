@@ -132,4 +132,8 @@ class ahb_monitor extends uvm_monitor;
         endcase
     endfunction
 
+    function uvm_analysis_port#(ahb_sequence_item) get_item_collected_port();
+        return beat_ap;
+    endfunction
+
 endclass
